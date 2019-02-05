@@ -9,6 +9,12 @@ function [data_indiv, varargout] = analyze_retention_individual_v1(Data, varargi
 %
 % David Huberdeau, last updated: 12/4/2018
 
+% set global variables
+global EARLIEST_VALID_PT LATEST_VALID_PT SUCCESS_TH_ANGLE
+% EARLIEST_VALID_PT = -.2;
+% LATEST_VALID_PT = .85;
+% SUCCESS_TH_ANGLE = 30;
+
 %% supress unneccessary warnings:
 warn_id = 'MATLAB:interp1:NaNstrip';
 warning('off', warn_id);
@@ -39,14 +45,16 @@ targ_angles(targ_angles > 180) = targ_angles(targ_angles > 180) - 360;
 targ_coords_base = TARG_LEN*[cosd(targ_angles)', sind(targ_angles)'] + home_position;
 
 SUCCESS_TH_SD = .95;
-SUCCESS_TH_ANGLE = 45;
+% SUCCESS_TH_ANGLE = 45;
 
-EARLIEST_VALID_PT = -.2;
-LATEST_VALID_PT = .85;
+% EARLIEST_VALID_PT = -.2;
+% LATEST_VALID_PT = .85;
 
 MIN_N_PTS_FOR_MEASURE = 4;
 
 TH_err_TH = 1;
+START_DIST_TH = 1;
+
 
 inds_temp = 1:length(Data.Type);
 type0 = inds_temp(Data.Type == 0);
@@ -158,34 +166,40 @@ for i_tr = 1:length(Data.Kinematics)
         dx_sub = dx2(k0:kf);
         dy_sub = dy2(k0:kf);
 
-        if plot_out
-            subplot(2,2,2);
-            plot(t_sub - t_sub(1), v_sub);
-
-            subplot(2,2,3); hold on;
-            plot(x_sub, y_sub);
-            plot(x_sub(1), y_sub(1), 'g.')
-        end
-
-        Kin_x(1:min([length(x_sub), size(Kin_x,1)]), i_tr) = x_sub(1:min([length(x_sub), size(Kin_x,1)]));
-        Kin_y(1:min([length(y_sub), size(Kin_y,1)]), i_tr) = y_sub(1:min([length(y_sub), size(Kin_y,1)]));
-
         dist = sqrt(x_sub.^2 + y_sub.^2);
         [TH_err, k_th] = min(abs(dist - dist_TH));
+        
+        if dist(1) < START_DIST_TH
+            if plot_out
+                subplot(2,2,2);
+                plot(t_sub - t_sub(1), v_sub);
 
-        if TH_err < TH_err_TH
-            dir_abs = rad2deg(atan2(dy_sub(k_th), dx_sub(k_th)));
-            targ_dir = targ_angles(Data.Target(i_tr));
+                subplot(2,2,3); hold on;
+                plot(x_sub, y_sub);
+                plot(x_sub(1), y_sub(1), 'g.')
+            end
 
-            Dir_a(i_tr) = dir_abs;
+            Kin_x(1:min([length(x_sub), size(Kin_x,1)]), i_tr) = x_sub(1:min([length(x_sub), size(Kin_x,1)]));
+            Kin_y(1:min([length(y_sub), size(Kin_y,1)]), i_tr) = y_sub(1:min([length(y_sub), size(Kin_y,1)]));
+            
+            if TH_err < TH_err_TH
 
-            dir_err = targ_dir - dir_abs;
-            dir_err(dir_err < -180) = dir_err(dir_err < -180) + 360;
-            dir_err(dir_err > 180) = dir_err(dir_err > 180) - 360;
-            Dir_e(i_tr) = dir_err;
+                dir_abs = rad2deg(atan2(dy_sub(k_th), dx_sub(k_th)));
+                targ_dir = targ_angles(Data.Target(i_tr));
+
+                Dir_a(i_tr) = dir_abs;
+
+                dir_err = targ_dir - dir_abs;
+                dir_err(dir_err < -180) = dir_err(dir_err < -180) + 360;
+                dir_err(dir_err > 180) = dir_err(dir_err > 180) - 360;
+                Dir_e(i_tr) = dir_err;
+            else
+                Dir_e(i_tr) = nan;
+                Dir_a(i_tr) = nan;
+            end
+            
         else
-            Dir_e(i_tr) = nan;
-            Dir_a(i_tr) = nan;
+            error('Trajectory measured as starting outside of Threshold region. Trial Failure.');
         end
 
     catch err_
@@ -223,52 +237,72 @@ end
 
 %% compute minimum PT for this individual:
 
-valid_vt = Data.ViewTime > EARLIEST_VALID_PT & Data.ViewTime < LATEST_VALID_PT;
-vt = Data.ViewTime(valid_vt);
-pt0 = Data.ViewTime(valid_vt & Data.Type == 0);
-pt1 = Data.ViewTime(valid_vt & Data.Type == 1);
-pt2 = Data.ViewTime(valid_vt & Data.Type == 2);
-de0 = Dir_e(valid_vt & Data.Type == 0);
-de1 = Dir_e(valid_vt & Data.Type == 1);
-de2 = Dir_e(valid_vt & Data.Type == 2);
+[min_pt, pt_s, fun, pt_m] = compute_min_pt(Data.ViewTime, Data.Type, Dir_e);
 
-pt0 = Data.ViewTime(type0);
-de0 = Dir_e(type0);
-pe0 = de0 <30 & de0 > -30;
-
-min_pt_est_set = nan(1,1000);
-for i_set = 1:length(min_pt_est_set)
-    
-    %select subsample of pt0:
-    rand_select = randperm(length(pt0));
-    pt0_ = pt0(rand_select(1:(ceil(length(pt0)*.8))));
-    pe0_ = pe0(rand_select(1:(ceil(length(pt0)*.8))));
-    
-    pt_s = linspace(min(pt0_), max(pt0_), 30);
-    fun = nan(size(pt_s));
-    for i_s = 1:length(pt_s)
-    %     fun(i_s) = sum(pe0(pt0 < .4 & pt0 > pt_s(i_s)))/sum(pt0 < .4 & pt0 > pt_s(i_s)) + sum(1 - pe0(pt0 > 0.1 & pt0 <= pt_s(i_s)))/sum(pt0 > 0.1 & pt0 <= pt_s(i_s));
-        fun(i_s) = sum(pe0_(pt0_ > pt_s(i_s))) + sum(1 - pe0_(pt0_ <= pt_s(i_s)));
-    end
-%     plot(pt_s, fun,'k')
-
-    %%%%%% MAIN + MOD: find max but look for equal or near equal max's later
-    [fun_m, pt_m] = max(fun);
-    if sum(abs(fun - fun_m) < 1) > 0 %there is a point nearly equal to the max
-        % take the later point's index as the min-PT
-        temp_inds = 1:length(fun);
-        equal_max_inds = temp_inds(abs(fun - fun_m) < 1);
-        pt_m = max(equal_max_inds); %take the latest index among (near) equals
-    end
+% valid_vt = Data.ViewTime > EARLIEST_VALID_PT & Data.ViewTime < LATEST_VALID_PT;
+% vt = Data.ViewTime(valid_vt);
+% pt0 = Data.ViewTime(valid_vt & Data.Type == 0);
+% pt1 = Data.ViewTime(valid_vt & Data.Type == 1);
+% pt2 = Data.ViewTime(valid_vt & Data.Type == 2);
+% de0 = Dir_e(valid_vt & Data.Type == 0);
+% de1 = Dir_e(valid_vt & Data.Type == 1);
+% de2 = Dir_e(valid_vt & Data.Type == 2);
+% 
+% % pt0 = Data.ViewTime(type0);
+% % de0 = Dir_e(type0);
+% pe0 = de0 <30 & de0 > -30;
+% 
+% pt_s = linspace(min(pt0), max(pt0), 30);
+% fun = nan(size(pt_s));
+% for i_s = 1:length(pt_s)
+% %     fun(i_s) = sum(pe0(pt0 < .4 & pt0 > pt_s(i_s)))/sum(pt0 < .4 & pt0 > pt_s(i_s)) + sum(1 - pe0(pt0 > 0.1 & pt0 <= pt_s(i_s)))/sum(pt0 > 0.1 & pt0 <= pt_s(i_s));
+%     fun(i_s) = sum(pe0(pt0 > pt_s(i_s))) + sum(1 - pe0(pt0 <= pt_s(i_s)));
+% end
+% [fun_m, pt_m] = max(fun);
+% closeness_to_maximum = fun_m*.05; % 5% of maximum
+% if sum(abs(fun - fun_m) < closeness_to_maximum) > 0 %there is a point nearly equal to the max
+%     % take the later point's index as the min-PT
+%     temp_inds = 1:length(fun);
+%     equal_max_inds = temp_inds(abs(fun - fun_m) < closeness_to_maximum);
+%     pt_m = max(equal_max_inds); %take the latest index among (near) equals
+% end
+% 
+% % Comment below out: 12/16/2018 - make consistent with superior method used
+% % in statistical learning paradigm.
+% %
+% % min_pt_est_set = nan(1,1000);
+% % for i_set = 1:length(min_pt_est_set)
+% %     
+% %     %select subsample of pt0:
+% %     rand_select = randperm(length(pt0));
+% %     pt0_ = pt0(rand_select(1:(ceil(length(pt0)*.8))));
+% %     pe0_ = pe0(rand_select(1:(ceil(length(pt0)*.8))));
+% %     
+% %     pt_s = linspace(min(pt0_), max(pt0_), 30);
+% %     fun = nan(size(pt_s));
+% %     for i_s = 1:length(pt_s)
+% %     %     fun(i_s) = sum(pe0(pt0 < .4 & pt0 > pt_s(i_s)))/sum(pt0 < .4 & pt0 > pt_s(i_s)) + sum(1 - pe0(pt0 > 0.1 & pt0 <= pt_s(i_s)))/sum(pt0 > 0.1 & pt0 <= pt_s(i_s));
+% %         fun(i_s) = sum(pe0_(pt0_ > pt_s(i_s))) + sum(1 - pe0_(pt0_ <= pt_s(i_s)));
+% %     end
+% % %     plot(pt_s, fun,'k')
+% % 
+% %     %%%%%% MAIN + MOD: find max but look for equal or near equal max's later
+% %     [fun_m, pt_m] = max(fun);
+% %     if sum(abs(fun - fun_m) < 1) > 0 %there is a point nearly equal to the max
+% %         % take the later point's index as the min-PT
+% %         temp_inds = 1:length(fun);
+% %         equal_max_inds = temp_inds(abs(fun - fun_m) < 1);
+% %         pt_m = max(equal_max_inds); %take the latest index among (near) equals
+% %     end
+% % %     plot([pt_s(pt_m), pt_s(pt_m)], [-200 200], 'k-', 'LineWidth', 2)
+% %     min_pt_est_set(i_set) = pt_s(pt_m);
+% % end
+% % pt_s = mean(min_pt_est_set(min_pt_est_set > 0));
+% % pt_m = 1;
+% 
+% if plot_out 
 %     plot([pt_s(pt_m), pt_s(pt_m)], [-200 200], 'k-', 'LineWidth', 2)
-    min_pt_est_set(i_set) = pt_s(pt_m);
-end
-pt_s = mean(min_pt_est_set(min_pt_est_set > 0));
-pt_m = 1;
-
-if plot_out 
-    plot([pt_s(pt_m), pt_s(pt_m)], [-200 200], 'k-', 'LineWidth', 2)
-end
+% end
 
 %% Plot probability of success at PT bins
 % figure; hold on;
@@ -440,9 +474,10 @@ end
 data_indiv.p_bins = {p_bin0, p_bin1, p_bin2};
 data_indiv.z_bins = {pt_z_bin0, pt_z_bin2};
 data_indiv.z_bin_sd = {pt_z_bin0_sd, pt_z_bin2_sd};
-data_indiv.min_pt = pt_s;
+data_indiv.min_pt = pt_s(pt_m);
 data_indiv.Dir_e = Dir_e;
 data_indiv.Dir_a = Dir_a;
+data_indiv.ViewTime = Data.ViewTime;
 data_indiv.types = {type0, type1, type2, type3, type4};
 data_indiv.kinematics = {Kin_x, Kin_y};
 data_indiv.targ_len = TARG_LEN;

@@ -1,3 +1,6 @@
+%% handle global variables
+global EARLIEST_VALID_PT LATEST_VALID_PT SUCCESS_TH_ANGLE
+
 %% list subject data files:
 group_subjects = {...
 'Data_S027_03262018_E1.mat'...
@@ -9,7 +12,7 @@ group_subjects = {...
 'Data_S033_03272018_E1.mat'...
 'Data_S034_03272018_E1.mat'...
 'Data_S035_03272018_E1.mat'...
-'Data_S036_03272018_E1.mat'...
+...% 'Data_S036_03272018_E1.mat'...
 'Data_S037_03272018_E1.mat'...
 'Data_S038_03282018_E1.mat'...
 'Data_S039_03282018_E1.mat'...
@@ -26,7 +29,7 @@ group_subjects = {...
 %% define some constants and parameters:
 EARLIEST_VALID_PT = -.2;
 LATEST_VALID_PT = .85;
-
+SUCCESS_TH_ANGLE = 30; % +/- 30-degrees around 0 directional error
 %% Analyze each subject:
 
 indiv_error_queue = {};
@@ -42,14 +45,27 @@ dir_absolute = nan(70, length(group_subjects), 3);
 catch_tr_apt = nan(12, length(group_subjects), 2);
 catch_tr_ppt = nan(12, length(group_subjects), 2);
 catch_tr_de = nan(12, length(group_subjects), 2);
+kin_x_catch3 = nan(25, 12, length(group_subjects));
+kin_y_catch3 = nan(25, 12, length(group_subjects));
+kin_x_catch4 = nan(25, 12, length(group_subjects));
+kin_y_catch4 = nan(25, 12, length(group_subjects));
+% kinematics_all = cell(2, length(group_subjects));
 
-h1 = figure; h2 = figure;
+example_subject = 7;
+
+trial_times = nan(length(group_subjects), 192);
+
+h1 = figure; h2 = figure; h3 = figure; h4 = figure;
 target_distances = nan(1, length(group_subjects));
 for i_sub = 1:length(group_subjects)
     sub_timer = tic;
     try
         load(group_subjects{i_sub})
         data_indiv = analyze_retention_individual_v1(Data, 0);
+        
+        for i_tr = 1:size(trial_times,2)
+            trial_times(i_sub, i_tr) = Data.Kinematics{i_tr}(end,1) - Data.Kinematics{i_tr}(1,1);
+        end
         
         p_bin0 = data_indiv.p_bins{1};
         p_bin1 = data_indiv.p_bins{2};
@@ -78,29 +94,38 @@ for i_sub = 1:length(group_subjects)
         Kin_x = data_indiv.kinematics{1};
         Kin_y = data_indiv.kinematics{2};
         
-        vt_temp = Data.ViewTime(Data.Type == 0);
+        for i_traj = 1:length(type3)
+            kin_x_catch3(:, i_traj, i_sub) = Kin_x(:, type3(i_traj));
+            kin_y_catch3(:, i_traj, i_sub) = Kin_y(:, type3(i_traj));
+        end
+        for i_traj = 1:length(type4)
+            kin_x_catch4(:, i_traj, i_sub) = Kin_x(:, type4(i_traj));
+            kin_y_catch4(:, i_traj, i_sub) = Kin_y(:, type4(i_traj));
+        end
+        
+        vt_temp = data_indiv.ViewTime(Data.Type == 0);
         de_temp = Dir_e(Data.Type == 0);
         da_temp = Dir_a(Data.Type == 0);
         view_time(1:length(vt_temp), i_sub, 1) = vt_temp;
         dir_error(1:length(de_temp), i_sub, 1) = de_temp;
         dir_absolute(1:length(da_temp), i_sub, 1) = da_temp;
 
-        vt_temp = Data.ViewTime(Data.Type == 1);
+        vt_temp = data_indiv.ViewTime(Data.Type == 1);
         de_temp = Dir_e(Data.Type == 1);
         da_temp = Dir_a(Data.Type == 1);
         view_time(1:length(vt_temp), i_sub, 2) = vt_temp;
         dir_error(1:length(de_temp), i_sub, 2) = de_temp;
         dir_absolute(1:length(da_temp), i_sub, 2) = da_temp;
 
-        vt_temp = Data.ViewTime(Data.Type == 2);
+        vt_temp = data_indiv.ViewTime(Data.Type == 2);
         de_temp = Dir_e(Data.Type == 2);
         da_temp = Dir_a(Data.Type == 2);
         view_time(1:length(vt_temp), i_sub, 3) = vt_temp;
         dir_error(1:length(de_temp), i_sub, 3) = de_temp;
         dir_absolute(1:length(da_temp), i_sub, 3) = da_temp;
         
-        catch_tr_apt(1:length(type3), i_sub, 1) = Data.ViewTime(type3);
-        catch_tr_apt(1:length(type4), i_sub, 2) = Data.ViewTime(type4);
+        catch_tr_apt(1:length(type3), i_sub, 1) = data_indiv.ViewTime(type3);
+        catch_tr_apt(1:length(type4), i_sub, 2) = data_indiv.ViewTime(type4);
         
         catch_tr_ppt(1:length(type3), i_sub, 1) = Data.pPT(type3);
         catch_tr_ppt(1:length(type4), i_sub, 2) = Data.pPT(type4);
@@ -109,16 +134,16 @@ for i_sub = 1:length(group_subjects)
         catch_tr_de(1:length(type4), i_sub, 2) = Dir_e(type4);
 
         open_winds = findobj('type', 'figure');
-        for i_wind = 1:(length(open_winds)-2)
+        for i_wind = 1:(length(open_winds)-4)
             close(i_wind + 2);
         end
         figure(h1); 
         subplot(ceil(sqrt(length(group_subjects))), ceil(sqrt(length(group_subjects))), i_sub); hold on;
-        plot(Data.ViewTime(type0), Dir_e(type0) , '.', 'MarkerSize', 16, 'Color', [172, 59, 59]/255)
-        plot(Data.ViewTime(type1), Dir_e(type1), '.', 'MarkerSize', 15, 'Color', [85, 170, 85]/255)
-        plot(Data.ViewTime(type2), Dir_e(type2), '.', 'MarkerSize', 14, 'Color', [86/255 85/255 149/255])
-        plot(Data.ViewTime(type3), Dir_e(type3), 'o', 'MarkerSize', 8, 'LineWidth', 2, 'Color', [225, 244, 162]/255)
-        plot(Data.ViewTime(type4), Dir_e(type4), 'o', 'MarkerSize', 8, 'LineWidth', 2, 'Color', [71, 113, 134]/255)
+        plot(data_indiv.ViewTime(type0), Dir_e(type0) , '.', 'MarkerSize', 16, 'Color', [172, 59, 59]/255)
+        plot(data_indiv.ViewTime(type1), Dir_e(type1), '.', 'MarkerSize', 15, 'Color', [85, 170, 85]/255)
+        plot(data_indiv.ViewTime(type2), Dir_e(type2), '.', 'MarkerSize', 14, 'Color', [86/255 85/255 149/255])
+        plot(data_indiv.ViewTime(type3), Dir_e(type3), 'o', 'MarkerSize', 8, 'LineWidth', 2, 'Color', [225, 244, 162]/255)
+        plot(data_indiv.ViewTime(type4), Dir_e(type4), 'o', 'MarkerSize', 8, 'LineWidth', 2, 'Color', [71, 113, 134]/255)
         plot([-.2 .8], [45 45], 'k')
         plot([-.2 .8], -[45 45], 'k')
         plot([min_pt(i_sub), min_pt(i_sub)], [-200 200], 'k-');
@@ -130,6 +155,22 @@ for i_sub = 1:length(group_subjects)
         plot(Kin_x(:,type1), -Kin_y(:,type1), '-', 'LineWidth', 1, 'Color', [85, 170, 85]/255)
         plot(Kin_x(:,type2), -Kin_y(:,type2), '-', 'LineWidth', .5, 'Color', [86/255 85/255 149/255])
         axis([-20 20 -20 20])
+        
+        if i_sub == example_subject
+            figure(h3); hold on;
+            plot(data_indiv.ViewTime(type0), Dir_e(type0) , '.', 'MarkerSize', 16, 'Color', [172, 59, 59]/255)
+            plot(data_indiv.ViewTime(type1), Dir_e(type1), '.', 'MarkerSize', 15, 'Color', [85, 170, 85]/255)
+            plot(data_indiv.ViewTime(type2), Dir_e(type2), '.', 'MarkerSize', 14, 'Color', [86/255 85/255 149/255])
+            set(gca,'fontsize',20)
+            axis([EARLIEST_VALID_PT, LATEST_VALID_PT, -200 200])
+            
+            figure(h4); hold on;
+            plot(Kin_x(:,type0), -Kin_y(:,type0), '-', 'LineWidth', 2, 'Color', [172, 59, 59]/255)
+            plot(Kin_x(:,type1), -Kin_y(:,type1), '-', 'LineWidth', 1, 'Color', [85, 170, 85]/255)
+            plot(Kin_x(:,type2), -Kin_y(:,type2), '-', 'LineWidth', .5, 'Color', [86/255 85/255 149/255])
+            axis([-20 20 -20 20])
+        end
+        
         
         target_distances(i_sub) = data_indiv.targ_len;
     catch individ_err
@@ -151,6 +192,7 @@ figure; hold on;
 errorbar(x_ind + 0.02, nanmean(p_bins(:,:,1), 2), sqrt(nanvar(p_bins(:,:,1),0,2)./sum(~isnan(p_bins(:,:,1)),2)), '.-', 'MarkerSize', 20, 'Color', [172, 59, 59]/255);
 errorbar(x_ind - 0.02, nanmean(p_bins(:,:,2), 2), sqrt(nanvar(p_bins(:,:,2),0,2)./sum(~isnan(p_bins(:,:,2)),2)), '.-', 'MarkerSize', 20, 'Color', [85, 170, 85]/255);
 errorbar(x_ind, nanmean(p_bins(:,:,3), 2), sqrt(nanvar(p_bins(:,:,3),0,2)./sum(~isnan(p_bins(:,:,3)),2)), '.-', 'MarkerSize', 20, 'Color', [86/255 85/255 149/255]);
+axis([EARLIEST_VALID_PT, LATEST_VALID_PT, 0 1])
 set(gca,'fontsize',20)
 legend('None', 'Direct', 'Symbolic')
 
@@ -163,3 +205,120 @@ errorbar(x_ind + 0.01, nanmean(z_bins(:,:,1), 2), sqrt(nanvar(z_bins(:,:,1),0,2)
 errorbar(x_ind - 0.01, nanmean(z_bins(:,:,2), 2), sqrt(nanvar(z_bins(:,:,2),0,2)./length(group_subjects)), '.-', 'MarkerSize', 20, 'Color', [86/255 85/255 149/255]);
 set(gca,'fontsize',20)
 legend('None', 'Symbolic')
+
+%% Align data to each participant's individual minPT and compute Pr(corr) for catch trials
+view_time_all_0 = reshape(view_time(:, :, 1) - repmat(min_pt, size(view_time,1), 1),...
+    size(view_time,1)*size(view_time,2), 1);
+view_time_all_1 = reshape(view_time(:, :, 2) - repmat(min_pt, size(view_time,1), 1),...
+    size(view_time,1)*size(view_time,2), 1);
+view_time_all_2 = reshape(view_time(:, :, 3) - repmat(min_pt, size(view_time,1), 1),...
+    size(view_time,1)*size(view_time,2), 1);
+
+de_all_0 = reshape(dir_error(:, :, 1), size(dir_error,1)*size(dir_error,2), 1);
+de_all_1 = reshape(dir_error(:, :, 2), size(dir_error,1)*size(dir_error,2), 1);
+de_all_2 = reshape(dir_error(:, :, 3), size(dir_error,1)*size(dir_error,2), 1);
+
+view_time_all_3 = reshape(catch_tr_apt(:, :, 1) - repmat(min_pt, size(catch_tr_apt,1), 1),...
+    size(catch_tr_apt,1)*size(catch_tr_apt,2), 1);
+view_time_all_4 = reshape(catch_tr_apt(:, :, 2) - repmat(min_pt, size(catch_tr_apt,1), 1),...
+    size(catch_tr_apt,1)*size(catch_tr_apt,2), 1);
+
+de_all_3 = reshape(catch_tr_de(:, :, 1), size(catch_tr_de,1)*size(catch_tr_de,2), 1);
+de_all_4 = reshape(catch_tr_de(:, :, 2), size(catch_tr_de,1)*size(catch_tr_de,2), 1);
+
+n_bins = 12;
+hist_bins_aligned = linspace(-0.5, 0.5, n_bins + 1);
+[n_pt_all, edge_pt_all] = histcounts(de_all_0, hist_bins_aligned);
+x_ind = edge_pt_all(2:end) - diff(edge_pt_all)/2;
+
+% setup probability of correct response per bin:
+p_all_0 = nan(length(edge_pt_all) - 1, 1);
+p_all_1 = nan(length(edge_pt_all) - 1, 1);
+p_all_2 = nan(length(edge_pt_all) - 1, 1);
+p_all_3 = nan(length(edge_pt_all) - 1, 1);
+p_all_4 = nan(length(edge_pt_all) - 1, 1);
+% setup variability of launch direction per bin:
+var_all_0 = nan(length(edge_pt_all) - 1, 1);
+var_all_1 = nan(length(edge_pt_all) - 1, 1);
+var_all_2 = nan(length(edge_pt_all) - 1, 1);
+
+for i_bin = 1:(length(edge_pt_all) - 1)
+    inds_0 = view_time_all_0 >= edge_pt_all(i_bin) &...
+        view_time_all_0 < edge_pt_all(i_bin + 1);
+    inds_1 = view_time_all_1 >= edge_pt_all(i_bin) &...
+        view_time_all_1 < edge_pt_all(i_bin + 1);
+    inds_2 = view_time_all_2 >= edge_pt_all(i_bin) &...
+        view_time_all_2 < edge_pt_all(i_bin + 1);
+    inds_3 = view_time_all_3 >= edge_pt_all(i_bin) &...
+        view_time_all_3 < edge_pt_all(i_bin + 1);
+    inds_4 = view_time_all_4 >= edge_pt_all(i_bin) &...
+        view_time_all_4 < edge_pt_all(i_bin + 1);
+    
+    % type 0 (no-precue)
+    inds_0_valid = inds_0 & ~isnan(de_all_0);
+    p_all_0(i_bin) = sum(abs(de_all_0(inds_0_valid)) < SUCCESS_TH_ANGLE)/sum(inds_0_valid);
+    inds_0_var = inds_0_valid & abs(de_all_0) < SUCCESS_TH_ANGLE;
+    var_all_0(i_bin) = sqrt(var(de_all_0(inds_0_var)));
+    
+    % type 1 (direct-precue)
+    inds_1_valid = inds_1 & ~isnan(de_all_1);
+    p_all_1(i_bin) = sum(abs(de_all_1(inds_1_valid)) < SUCCESS_TH_ANGLE)/sum(inds_1_valid);
+    inds_1_var = inds_1_valid & abs(de_all_1) < SUCCESS_TH_ANGLE;
+    var_all_1(i_bin) = sqrt(var(de_all_1(inds_1_var)));
+    
+    % type 2 (symbolic-precue)
+    inds_2_valid = inds_2 & ~isnan(de_all_2);
+    p_all_2(i_bin) = sum(abs(de_all_2(inds_2_valid)) < SUCCESS_TH_ANGLE)/sum(inds_2_valid);
+    inds_2_var = inds_2_valid & abs(de_all_2) < SUCCESS_TH_ANGLE;
+    var_all_2(i_bin) = sqrt(var(de_all_2(inds_2_var)));
+    
+    % type 3 (catch trial direct)
+    inds_3_valid = inds_3 & ~isnan(de_all_3);
+    p_all_3(i_bin) = sum(abs(de_all_3(inds_3_valid)) < SUCCESS_TH_ANGLE)/sum(inds_3_valid);
+    
+    % type 2 (catch trial symbolic)
+    inds_4_valid = inds_4 & ~isnan(de_all_4);
+    p_all_4(i_bin) = sum(abs(de_all_4(inds_4_valid)) < SUCCESS_TH_ANGLE)/sum(inds_4_valid);
+    
+    
+end
+
+%% plot dir. err. aligned to minPT, and catch trial err., and pr(corr), and variability
+figure;
+subplot(4,1,1); hold on;
+plot([0 0], [-200 200], 'k-')
+plot(view_time_all_0, de_all_0, 'r.') %type 0
+plot(view_time_all_1, de_all_1, 'g.') %type 1
+plot(view_time_all_2, de_all_2, 'b.') %type 2
+plot([-.5 .5], [30 30], '-', 'Color', [.5 .5 .5]);
+plot([-.5 .5], -[30 30], '-', 'Color', [.5 .5 .5]);
+axis([-0.5 0.5 -200 200]);
+
+subplot(4,1,2); hold on;
+plot([0 0], [-200 200], 'k-')
+plot(view_time_all_3, de_all_3, 'go') %type 3 (catch trials, direct cue)
+plot(view_time_all_4, de_all_4, 'bo') %type 4 (catch trials, symbol cue) 
+plot([-.5 .5], [30 30], '-', 'Color', [.5 .5 .5]);
+plot([-.5 .5], -[30 30], '-', 'Color', [.5 .5 .5]);
+axis([-0.5 0.5 -200 200]);
+
+subplot(4,1,3); hold on;
+plot([0 0], [0 1], 'k-')
+plot(x_ind, p_all_0, 'r.-');
+plot(x_ind, p_all_1, 'g.-');
+plot(x_ind, p_all_2, 'b.-');
+plot(x_ind, p_all_3, 'go-');
+plot(x_ind, p_all_4, 'bo-');
+axis([-0.5 0.5 0 1]);
+plot([-.5 .5], [.25 .25], '-', 'Color', [.5 .5 .5]);
+plot([-.5 .5], [30 30], '--', 'Color', [.5 .5 .5]);
+plot([-.5 .5], -[30 30], '--', 'Color', [.5 .5 .5]);
+
+subplot(4,1,4); hold on;
+plot([0 0], [0 12], 'k-')
+plot(x_ind, var_all_0, 'r.-');
+plot(x_ind, var_all_1, 'g.-');
+plot(x_ind, var_all_2, 'b.-');
+
+%% plot catch trial trajectories aligned to bins of PT.
+
