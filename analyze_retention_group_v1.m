@@ -51,6 +51,16 @@ kin_x_catch4 = nan(25, 12, length(group_subjects));
 kin_y_catch4 = nan(25, 12, length(group_subjects));
 % kinematics_all = cell(2, length(group_subjects));
 
+% setup matricies to collect all data:
+N_trials = 192;
+type_all = nan(N_trials, length(group_subjects));
+pt_all = nan(N_trials, length(group_subjects));
+move_all = nan(N_trials, length(group_subjects));
+target_all = nan(N_trials, length(group_subjects));
+
+targ_angles = 0:90:300;
+targ_angles(targ_angles > 180) = targ_angles(targ_angles > 180) - 360;
+
 example_subject = 7;
 
 trial_times = nan(length(group_subjects), 192);
@@ -87,6 +97,17 @@ for i_sub = 1:length(group_subjects)
         type2 = data_indiv.types{3};
         type3 = data_indiv.types{4};
         type4 = data_indiv.types{5};
+        
+        % assign data to appropriate indicies:
+        type_all(:, i_sub) = Data.Type;
+        pt_all(:, i_sub) = data_indiv.ViewTime;
+        target_all(:, i_sub) = Data.Target;
+        for i_tr = 1:length(data_indiv.Dir_a)
+            [targ_off_mag, targ_class] = min(abs(data_indiv.Dir_a(i_tr) - targ_angles));
+            if abs(targ_off_mag) <= SUCCESS_TH_ANGLE
+                move_all(i_tr, i_sub) = targ_class;
+            end
+        end
         
         Dir_e = data_indiv.Dir_e;
         Dir_a = data_indiv.Dir_a;
@@ -320,5 +341,31 @@ plot(x_ind, var_all_0, 'r.-');
 plot(x_ind, var_all_1, 'g.-');
 plot(x_ind, var_all_2, 'b.-');
 
-%% plot catch trial trajectories aligned to bins of PT.
+%% plot probability of recall as function of appearance of symbol:
+[rec_lpt, rec_hpt] = compute_recall_probability_appearance_order(...
+    move_all, target_all, type_all,...
+    pt_all, min_pt, 2);
+
+max_lpt = 15;
+
+lpt_per_targ = reshape(nanmean(rec_lpt, 3), 4, size(rec_lpt, 2));
+lpt_all = reshape(nanmean(rec_lpt, 1), size(rec_lpt,2), size(rec_lpt, 3));
+
+figure; hold on;
+    errorbar(1:max_lpt, nanmean(lpt_all(1:max_lpt, :),2),...
+        sqrt(nanvar(lpt_all(1:max_lpt, :), [], 2)./size(lpt_all, 2)), 'b.-',...
+        'MarkerSize', 18, 'LineWidth', 3);
+axis([0 max_lpt 0 1]);
+
+[rec_lpt_direct, rec_hpt_direct] = compute_recall_probability_appearance_order(...
+    move_all, target_all, type_all,...
+    pt_all, min_pt, 1);
+
+lpt_per_targ_direct = reshape(nanmean(rec_lpt_direct, 3), 4, size(rec_lpt_direct, 2));
+lpt_all_direct = reshape(nanmean(rec_lpt_direct, 1), size(rec_lpt_direct,2), size(rec_lpt_direct, 3));
+
+errorbar(1:max_lpt, nanmean(lpt_all_direct(1:max_lpt, :),2),...
+        sqrt(nanvar(lpt_all_direct(1:max_lpt, :), [], 2)./size(lpt_all_direct, 2)), 'g.-',...
+        'MarkerSize', 18, 'LineWidth', 3);
+axis([0 max_lpt 0 1]);
 

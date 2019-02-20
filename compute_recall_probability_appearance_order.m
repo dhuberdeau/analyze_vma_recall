@@ -12,7 +12,7 @@ function [recall_prob_lowPT_2, recall_prob_highPT_2] = ...
 %   target - the actual symbol of movement
 %   type - the type of each trial
 %   pt - the actual pt of each trial
-%   the minimum pt measured from each person
+%   min_pt - the minimum pt measured from each person
 %   trial_type_to_display (optional) - symbolic (2), 
 %     direct (1), or no precue (0) [default = 2, symbolic];
 %
