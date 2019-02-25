@@ -202,7 +202,7 @@ for i_sub = 1:length(group_subjects)
 end
 toc(all_timer)
 
-%% plot group aggregate results:
+%% plot group aggregate results: probability of correct response
 n_bins = 8;
 vt = view_time(:);
 hist_bins = linspace(EARLIEST_VALID_PT, LATEST_VALID_PT, n_bins+1);
@@ -217,6 +217,18 @@ axis([EARLIEST_VALID_PT, LATEST_VALID_PT, 0 1])
 set(gca,'fontsize',20)
 legend('None', 'Direct', 'Symbolic')
 
+% write out results for proper stats analysis in R
+pt_out_ = repmat(repmat(x_ind', 1, size(p_bins,2)), 1,1,3);
+pt_out = reshape(permute(pt_out_, [2 1 3]), numel(p_bins), 1);
+prob_succ_out = reshape(permute(p_bins, [2 1 3]), numel(p_bins), 1);
+subjects_out = reshape(repmat(1:size(p_bins,2), size(p_bins,1), 1, 3), numel(p_bins), 1);
+trial_type_out = reshape(cat(3, zeros(size(p_bins,1), size(p_bins,2)), ...
+    ones(size(p_bins,1), size(p_bins,2)), 2*ones(size(p_bins,1), size(p_bins,2))), numel(p_bins), 1);
+table_out = [pt_out, subjects_out, trial_type_out, prob_succ_out];
+
+csvwrite('prob_succ_E1', table_out);
+
+%% plot group aggregate results: z-score
 n_bins = 6; hist_bins = linspace(-.005, .605, n_bins+1);
 [pt_sort, i_sort] = sort(Data.pPT);
 [n_ppt_all, edge_ppt_all] = histcounts(pt_sort, hist_bins);
@@ -391,9 +403,12 @@ plot(x_ind, var_all_2, 'b.-');
 %     end
 % end
 
-reach_var_persub_0 = reach_var_persub_0(sum(isnan(reach_var_persub_0),2) < 1, :);
-reach_var_persub_1 = reach_var_persub_1(sum(isnan(reach_var_persub_1),2) < 1, :);
-reach_var_persub_2 = reach_var_persub_2(sum(isnan(reach_var_persub_2),2) < 1, :);
+subj_to_include = sum(isnan(reach_var_persub_0),2) < 1 & ...
+    sum(isnan(reach_var_persub_1),2) < 1 & ...
+    sum(isnan(reach_var_persub_2),2) < 1;
+reach_var_persub_0 = reach_var_persub_0(subj_to_include, :);
+reach_var_persub_1 = reach_var_persub_1(subj_to_include, :);
+reach_var_persub_2 = reach_var_persub_2(subj_to_include, :);
 
 figure; hold on;
 errorbar([1 2], nanmedian(reach_var_persub_0, 1),...
@@ -403,6 +418,14 @@ errorbar([1 2], nanmedian(reach_var_persub_1, 1),...
 errorbar([1 2], nanmedian(reach_var_persub_2, 1),...
     sqrt(nanvar(reach_var_persub_2, [], 1)./sum(~isnan(reach_var_persub_2),1)), 'b.');
 axis([0 3 0 30])
+
+% write out data table for proper stats in R:
+var_data_table = [[reach_var_persub_0(:,1); reach_var_persub_1(:,1); reach_var_persub_2(:,1)],...
+    repmat((1:size(reach_var_persub_0,1))', 3, 1),...
+    [zeros(size(reach_var_persub_0,1),1); ones(size(reach_var_persub_1,1),1);...
+    2*ones(size(reach_var_persub_2,1),1)]]; 
+csvwrite('variability_E1', var_data_table)
+
 %% plot probability of recall as function of appearance of symbol:
 [rec_lpt, rec_hpt] = compute_recall_probability_appearance_order(...
     move_all, target_all, type_all,...
