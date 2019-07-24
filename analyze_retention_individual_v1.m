@@ -68,10 +68,13 @@ targ2 = inds_temp(Data.Target == 2);
 targ3 = inds_temp(Data.Target == 3);
 targ4 = inds_temp(Data.Target == 4);
 
-Kin_x = nan(25, length(Data.Kinematics)); %structure to hold all kinematics
-Kin_y = nan(25, length(Data.Kinematics)); %structure to hold all kinematics
+Kin_x = nan(25, length(Data.Kinematics)); %matrix to hold all kinematics
+Kin_y = nan(25, length(Data.Kinematics)); %matrix to hold all kinematics
+kin_PV = nan(1, length(Data.Kinematics)); %matrix to hold peak velocity
+kin_MT = nan(1, length(Data.Kinematics)); %matrix to hold Movement time
+kin_VAR = nan(1, length(Data.Kinematics)); %matrix to hold within-mvmt var.
 Dir_e = nan(1, length(Data.Kinematics)); %directional error from target.
-Dir_a = nan(1, length(Data.Kinematics));
+Dir_a = nan(1, length(Data.Kinematics)); %absolute direction of initial reach.
 
 vel_prelim = cell(1, length(Data.Kinematics));
 
@@ -80,8 +83,10 @@ H = 60;
 T = 1/H;
 disc_time = 4*H;
 veloc_TH = 10; %cm/sec
-veloc_TH_1 = 20; TH_window_1 = round([-0.075, 0.15].*H);
-dist_TH = TARG_LEN/4;
+veloc_TH_1 = 20; 
+TH_window_1 = round([-0.075, 0.20].*H); %limit search to [-.075, .2] sec window
+% dist_TH = TARG_LEN/4;
+dist_TH = 3;
 if plot_out
     figure; subplot(2,2,1); hold on; 
     subplot(2,2,2); hold on; 
@@ -108,8 +113,15 @@ for i_tr = 1:length(Data.Kinematics)
 
         dx = sgolayfilt(dx1, 3, 5);
         dy = sgolayfilt(dy1, 3, 5);
+        
+        ax1 = [0 diff(dx)./diff(t)];
+        ay1 = [0 diff(dy)./diff(t)];
+        
+        ax = sgolayfilt(ax1, 3, 5);
+        ay = sgolayfilt(ay1, 3, 5);
 
         v = sqrt(dx.^2 + dy.^2);
+        a = sqrt(ax.^2 + ay.^2); 
 
         if plot_out
             subplot(2,2,1);
@@ -124,6 +136,10 @@ for i_tr = 1:length(Data.Kinematics)
         y1 = y(disc_time:end);
         dx1 = dx(disc_time:end);
         dy1 = dy(disc_time:end);
+        v1 = v(disc_time:end);
+        ax1 = ax(disc_time:end);
+        ay1 = ay(disc_time:end);
+        a1 = a(disc_time:end);
         
         vel_prelim{i_tr} = [t1(:), v1(:)];
 
@@ -135,13 +151,20 @@ for i_tr = 1:length(Data.Kinematics)
             v0 = v1(k0);
         end
 
+        % take a relatively small window of time around the movement
+        % initiation as determined by forwards search:
         t2 = t1(k0+(TH_window_1(1):TH_window_1(2)));
-        v2 = v1(k0+(TH_window_1(1):TH_window_1(2)));
         x2 = x1(k0+(TH_window_1(1):TH_window_1(2)));
         y2 = y1(k0+(TH_window_1(1):TH_window_1(2)));
+        v2 = v1(k0+(TH_window_1(1):TH_window_1(2)));
+        a2 = a1(k0+(TH_window_1(1):TH_window_1(2)));
         dx2 = dx1(k0+(TH_window_1(1):TH_window_1(2)));
         dy2 = dy1(k0+(TH_window_1(1):TH_window_1(2)));
+        ax2 = ax1(k0+(TH_window_1(1):TH_window_1(2)));
+        ay2 = ay1(k0+(TH_window_1(1):TH_window_1(2)));
 
+        % search backward in time from the peak velocity to find the time
+        % at which the velocity first exceeded a low velocity threshold.
         [v0, k0] = max(v2);
         k_max = k0;
         v_max = v0;
@@ -149,6 +172,10 @@ for i_tr = 1:length(Data.Kinematics)
             k0 = k0 - 1;
             v0 = v2(k0);
         end
+        
+        % search forward in time from the peak velocity to find the time at
+        % which the velocity last exceeded the low velocity threshold to
+        % find movement end 
         vf = v_max; kf = k_max;
         while vf > veloc_TH && kf < length(v2)
             kf = kf + 1;
@@ -160,11 +187,14 @@ for i_tr = 1:length(Data.Kinematics)
         end
 
         t_sub = t2(k0:kf);
-        v_sub = v2(k0:kf);
         x_sub = x2(k0:kf);
         y_sub = y2(k0:kf);
+        v_sub = v2(k0:kf);
+        a_sub = a2(k0:kf);
         dx_sub = dx2(k0:kf);
         dy_sub = dy2(k0:kf);
+        ax_sub = ax2(k0:kf);
+        ay_sub = ay2(k0:kf);
 
         dist = sqrt(x_sub.^2 + y_sub.^2);
         [TH_err, k_th] = min(abs(dist - dist_TH));
@@ -178,9 +208,17 @@ for i_tr = 1:length(Data.Kinematics)
                 plot(x_sub, y_sub);
                 plot(x_sub(1), y_sub(1), 'g.')
             end
-
+            
+            % record movement kinematics and kinematic measures:
             Kin_x(1:min([length(x_sub), size(Kin_x,1)]), i_tr) = x_sub(1:min([length(x_sub), size(Kin_x,1)]));
             Kin_y(1:min([length(y_sub), size(Kin_y,1)]), i_tr) = y_sub(1:min([length(y_sub), size(Kin_y,1)]));
+            
+            kin_PV(i_tr) = v_max;
+            kin_MT(i_tr) = t_sub(end) - t_sub(1);
+            
+            [f_sub, p_sub] = simple_psd(a_sub, H);
+            f_targ = f_sub > 4 & f_sub < 8;
+            kin_VAR(i_tr) = nanmean(p_sub(f_targ));
             
             if TH_err < TH_err_TH
 
@@ -480,6 +518,7 @@ data_indiv.Dir_a = Dir_a;
 data_indiv.ViewTime = Data.ViewTime;
 data_indiv.types = {type0, type1, type2, type3, type4};
 data_indiv.kinematics = {Kin_x, Kin_y};
+data_indiv.kin_summary = {kin_PV, kin_MT, kin_VAR};
 data_indiv.targ_len = TARG_LEN;
 
 varargout{1} = error_queue;

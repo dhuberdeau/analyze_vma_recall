@@ -1,5 +1,6 @@
 %% handle global variables
-global EARLIEST_VALID_PT LATEST_VALID_PT SUCCESS_TH_ANGLE
+global EARLIEST_VALID_PT LATEST_VALID_PT SUCCESS_TH_ANGLE...
+    MIN_N_PT_FOR_MEASURE RED_COLOR GREEN_COLOR BLUE_COLOR
 
 %% list subject data files:
 group_subjects = {...
@@ -27,9 +28,15 @@ group_subjects = {...
 };
 
 %% define some constants and parameters:
-EARLIEST_VALID_PT = -.2;
-LATEST_VALID_PT = .85;
+EARLIEST_VALID_PT = -.1;
+LATEST_VALID_PT = .7;
 SUCCESS_TH_ANGLE = 30; % +/- 30-degrees around 0 directional error
+MIN_N_PT_FOR_MEASURE = 4;
+RED_COLOR = [172, 59, 59]/255;
+GREEN_COLOR = [85, 170, 85]/255; 
+BLUE_COLOR = [86 85 149]/255;
+
+PT_BINS = 7;
 %% Analyze each subject:
 
 indiv_error_queue = {};
@@ -57,9 +64,16 @@ type_all = nan(N_trials, length(group_subjects));
 pt_all = nan(N_trials, length(group_subjects));
 move_all = nan(N_trials, length(group_subjects));
 target_all = nan(N_trials, length(group_subjects));
+direrror_all = nan(N_trials, length(group_subjects));
+dir_rel_error_all = nan(N_trials, length(group_subjects)); % error relative to chosen target (even if wrong)
+kin_PV = nan(N_trials, length(group_subjects));
+kin_MT = nan(N_trials, length(group_subjects));
+kin_VAR = nan(N_trials, length(group_subjects));
+
 
 targ_angles = 0:90:300;
 targ_angles(targ_angles > 180) = targ_angles(targ_angles > 180) - 360;
+targ_angles_plus = [targ_angles, -180]; % 0 and -180 are same target
 
 example_subject = 7;
 
@@ -114,6 +128,14 @@ for i_sub = 1:length(group_subjects)
         
         Kin_x = data_indiv.kinematics{1};
         Kin_y = data_indiv.kinematics{2};
+        
+        kin_PV(1:length(data_indiv.kin_summary{1}), i_sub) = data_indiv.kin_summary{1};
+        kin_MT(1:length(data_indiv.kin_summary{2}), i_sub) = data_indiv.kin_summary{2};
+        kin_VAR(1:length(data_indiv.kin_summary{3}), i_sub) = data_indiv.kin_summary{3};
+        
+        direrror_all(1:length(Dir_e), i_sub) = Dir_e;
+        dir_rel_error_all(1:length(Dir_a), i_sub) = ...
+            compute_relative_target_error(Dir_a, targ_angles_plus);
         
         for i_traj = 1:length(type3)
             kin_x_catch3(:, i_traj, i_sub) = Kin_x(:, type3(i_traj));
@@ -192,7 +214,6 @@ for i_sub = 1:length(group_subjects)
             axis([-20 20 -20 20])
         end
         
-        
         target_distances(i_sub) = data_indiv.targ_len;
     catch individ_err
         warning(['Subject ', num2str(i_sub), ' failed.'])
@@ -202,42 +223,99 @@ for i_sub = 1:length(group_subjects)
 end
 toc(all_timer)
 
-%% plot group aggregate results: probability of correct response
-n_bins = 8;
-vt = view_time(:);
-hist_bins = linspace(EARLIEST_VALID_PT, LATEST_VALID_PT, n_bins+1);
-[n_pt_all, edge_pt_all] = histcounts(vt, hist_bins);
-x_ind = edge_pt_all(2:end) - diff(edge_pt_all)/2;
+%% Test for differences among trial types on kinematic summary variables: 
+% which include Movement time (MT), peak velocity (PV), and movement
+% variability (VAR)
+test_kin_summary_variables;
 
+%% plot group results: pr correct.
+table_pc = plot_behavior_over_pt(pt_all, abs(direrror_all) < SUCCESS_TH_ANGLE, type_all, PT_BINS);
+f_ = gcf;
+xlabel('Preparation Time (sec)')
+ylabel('Probability correct');
+set(f_, 'Position', [0 0 600 200])
+saveas(f_, 'Probability_correct.pdf');
+
+%% plot group results: absoluate direction error (de).
+table_ade = plot_behavior_over_pt(pt_all, abs(direrror_all), type_all, PT_BINS);
+f_ = gcf;
+xlabel('Preparation Time (sec)')
+ylabel('Directional error (degrees)');
+set(f_, 'Position', [0 200 600 200])
+saveas(f_, 'Direction_error.pdf');
+
+%% plot group results: movement time (MT)
+table_mt = plot_behavior_over_pt(pt_all, kin_MT, type_all, PT_BINS);
+f_ = gcf;
+xlabel('Preparation Time (sec)')
+ylabel('Movement time (sec)');
+set(f_, 'Position', [0 400 600 200])
+saveas(f_, 'Movement_time.pdf');
+
+%% plot group results: peak velocity (PV)
+table_pv = plot_behavior_over_pt(pt_all, kin_PV, type_all, PT_BINS);
+f_ = gcf;
+xlabel('Preparation Time (sec)')
+ylabel('Peak Velocity (cm/sec)');
+set(f_, 'Position', [0 600 600 200])
+saveas(f_, 'Peak_velocity.pdf');
+
+%% plot group results: movement variability (computed from rde, relative direction error)
+% table_mv = plot_behavior_over_pt(pt_all, kin_VAR, type_all, PT_BINS);
+table_rde = plot_behavior_over_pt(pt_all, dir_rel_error_all, type_all, PT_BINS);
+
+% plot mean variability (SD) of movement initiation directions binned by PT.
 figure; hold on;
-errorbar(x_ind + 0.02, nanmean(p_bins(:,:,1), 2), sqrt(nanvar(p_bins(:,:,1),0,2)./sum(~isnan(p_bins(:,:,1)),2)), '.-', 'MarkerSize', 20, 'Color', [172, 59, 59]/255);
-errorbar(x_ind - 0.02, nanmean(p_bins(:,:,2), 2), sqrt(nanvar(p_bins(:,:,2),0,2)./sum(~isnan(p_bins(:,:,2)),2)), '.-', 'MarkerSize', 20, 'Color', [85, 170, 85]/255);
-errorbar(x_ind, nanmean(p_bins(:,:,3), 2), sqrt(nanvar(p_bins(:,:,3),0,2)./sum(~isnan(p_bins(:,:,3)),2)), '.-', 'MarkerSize', 20, 'Color', [86/255 85/255 149/255]);
-axis([EARLIEST_VALID_PT, LATEST_VALID_PT, 0 1])
-set(gca,'fontsize',20)
-legend('None', 'Direct', 'Symbolic')
+errorbar(nanmean(table_rde{1}) + 0.02, nanmean(table_rde{3}(:, :, 1)),...
+sqrt(nanvar(table_rde{3}(:, :, 1))./sum(~isnan(table_rde{3}(:, :, 1)))), ...
+'.-', 'LineWidth', 2, 'MarkerSize', 20, 'Color', RED_COLOR);
 
-% write out results for proper stats analysis in R
-pt_out_ = repmat(repmat(x_ind', 1, size(p_bins,2)), 1,1,3);
-pt_out = reshape(permute(pt_out_, [2 1 3]), numel(p_bins), 1);
-prob_succ_out = reshape(permute(p_bins, [2 1 3]), numel(p_bins), 1);
-subjects_out = reshape(repmat(1:size(p_bins,2), size(p_bins,1), 1, 3), numel(p_bins), 1);
-trial_type_out = reshape(cat(3, zeros(size(p_bins,1), size(p_bins,2)), ...
-    ones(size(p_bins,1), size(p_bins,2)), 2*ones(size(p_bins,1), size(p_bins,2))), numel(p_bins), 1);
-table_out = [pt_out, subjects_out, trial_type_out, prob_succ_out];
+errorbar(nanmean(table_rde{1}) - 0.02, nanmean(table_rde{3}(:, :, 2)),...
+sqrt(nanvar(table_rde{3}(:, :, 2))./sum(~isnan(table_rde{3}(:, :, 2)))), ...
+'.-', 'LineWidth', 2, 'MarkerSize', 20, 'Color', GREEN_COLOR);
 
-csvwrite('prob_succ_E1', table_out);
+errorbar(nanmean(table_rde{1}), nanmean(table_rde{3}(:, :, 3)),...
+sqrt(nanvar(table_rde{3}(:, :, 3))./sum(~isnan(table_rde{3}(:, :, 3)))), ...
+'.-', 'LineWidth', 2, 'MarkerSize', 20, 'Color', BLUE_COLOR);
 
-%% plot group aggregate results: z-score
-n_bins = 6; hist_bins = linspace(-.005, .605, n_bins+1);
-[pt_sort, i_sort] = sort(Data.pPT);
-[n_ppt_all, edge_ppt_all] = histcounts(pt_sort, hist_bins);
-x_ind = edge_ppt_all(2:end) - diff(edge_ppt_all)/2;
-figure; hold on;
-errorbar(x_ind + 0.01, nanmean(z_bins(:,:,1), 2), sqrt(nanvar(z_bins(:,:,1),0,2)./length(group_subjects)), '.-', 'MarkerSize', 20, 'Color', [172, 59, 59]/255);
-errorbar(x_ind - 0.01, nanmean(z_bins(:,:,2), 2), sqrt(nanvar(z_bins(:,:,2),0,2)./length(group_subjects)), '.-', 'MarkerSize', 20, 'Color', [86/255 85/255 149/255]);
-set(gca,'fontsize',20)
-legend('None', 'Symbolic')
+% errorbar(nanmean(table_rde{1}), nanmean(table_rde{3}(:, :, 4)),...
+% sqrt(nanvar(table_rde{3}(:, :, 4))./sum(~isnan(table_rde{3}(:, :, 4)))), ...
+% 'o-',  'LineWidth', 2, 'MarkerSize', 12, 'Color', GREEN_COLOR);
+% 
+% errorbar(nanmean(table_rde{1}), nanmean(table_rde{3}(:, :, 5)),...
+% sqrt(nanvar(table_rde{3}(:, :, 5))./sum(~isnan(table_rde{3}(:, :, 5)))), ...
+% 'o-',  'LineWidth', 2, 'MarkerSize', 12, 'Color', BLUE_COLOR);
+
+axis([EARLIEST_VALID_PT, LATEST_VALID_PT, min(min(min(table_rde{3}))), max(max(max(table_rde{3})))])
+set(gca,'fontsize',18)
+legend('None', 'Direct', 'Symbolic', 'location', 'bestoutside')
+
+f_ = gcf;
+xlabel('Preparation Time (sec.)')
+ylabel('Directional variability (degrees)');
+set(f_, 'Position', [0 800 600 200])
+saveas(f_, 'Direction_variability.pdf');
+
+%% export relevant variables for analysis in R:
+
+% expore summary measures:
+table_out_pc = make_data_table(table_pc);
+table_out_var = make_data_table(table_rde, 3);
+table_out_pv = make_data_table(table_pv);
+table_out_err = make_data_table(table_ade);
+
+csvwrite('table_E1_pc', table_out_pc);
+csvwrite('table_E1_var', table_out_var);
+csvwrite('table_E1_pv', table_out_pv);
+csvwrite('table_E1_de', table_out_err);
+
+% expore raw measures:
+data_mat_pc = [abs(direrror_all(:)) < 30,...
+    type_all(:),...
+    pt_all(:),...
+    reshape(repmat((1:size(pt_all,2)), size(pt_all,1), 1), numel(pt_all), 1)];
+
+csvwrite('raw_data_mat_E1_pc', data_mat_pc);
 
 %% Align data to each participant's individual minPT and compute Pr(corr) for catch trials
 view_time_all_0 = reshape(view_time(:, :, 1) - repmat(min_pt, size(view_time,1), 1),...
@@ -270,6 +348,7 @@ p_all_1 = nan(length(edge_pt_all) - 1, 1);
 p_all_2 = nan(length(edge_pt_all) - 1, 1);
 p_all_3 = nan(length(edge_pt_all) - 1, 1);
 p_all_4 = nan(length(edge_pt_all) - 1, 1);
+
 % setup variability of launch direction per bin:
 var_all_0 = nan(length(edge_pt_all) - 1, 1);
 var_all_1 = nan(length(edge_pt_all) - 1, 1);
@@ -318,113 +397,55 @@ end
 
 %% plot dir. err. aligned to minPT, and catch trial err., and pr(corr), and variability
 figure;
-subplot(4,1,1); hold on;
+n_subplots = 3;
+
+subplot(n_subplots,1,1); hold on;
 plot([0 0], [-200 200], 'k-')
-plot(view_time_all_0, de_all_0, 'r.') %type 0
-plot(view_time_all_1, de_all_1, 'g.') %type 1
-plot(view_time_all_2, de_all_2, 'b.') %type 2
+plot(view_time_all_0, de_all_0, '.', 'Color', [172, 59, 59]/255) %type 0
+plot(view_time_all_1, de_all_1, '.', 'Color', [85, 170, 85]/255) %type 1
+plot(view_time_all_2, de_all_2, '.', 'Color', [86 85 149]/255) %type 2
 plot([-.5 .5], [30 30], '-', 'Color', [.5 .5 .5]);
 plot([-.5 .5], -[30 30], '-', 'Color', [.5 .5 .5]);
 axis([-0.5 0.5 -200 200]);
+set(gca,'fontsize',18)
+ylabel('Directional error', 'Fontsize', 12);
 
-subplot(4,1,2); hold on;
+subplot(n_subplots,1,2); hold on;
 plot([0 0], [-200 200], 'k-')
-plot(view_time_all_3, de_all_3, 'go') %type 3 (catch trials, direct cue)
-plot(view_time_all_4, de_all_4, 'bo') %type 4 (catch trials, symbol cue) 
+plot(view_time_all_3, de_all_3, 'o', 'Color', [85, 170, 85]/255) %type 3 (catch trials, direct cue)
+plot(view_time_all_4, de_all_4, 'o', 'Color', [86 85 149]/255) %type 4 (catch trials, symbol cue) 
 plot([-.5 .5], [30 30], '-', 'Color', [.5 .5 .5]);
 plot([-.5 .5], -[30 30], '-', 'Color', [.5 .5 .5]);
 axis([-0.5 0.5 -200 200]);
+set(gca,'fontsize',18)
+ylabel('Directional error','Fontsize', 12);
 
-subplot(4,1,3); hold on;
+subplot(n_subplots,1,3); hold on;
 plot([0 0], [0 1], 'k-')
-plot(x_ind, p_all_0, 'r.-');
-plot(x_ind, p_all_1, 'g.-');
-plot(x_ind, p_all_2, 'b.-');
-plot(x_ind, p_all_3, 'go-');
-plot(x_ind, p_all_4, 'bo-');
+plot(x_ind, p_all_0, '.-', 'Color', [172, 59, 59]/255);
+plot(x_ind, p_all_1, '.-', 'Color', [85, 170, 85]/255);
+plot(x_ind, p_all_2, '.-', 'Color', [86 85 149]/255);
+plot(x_ind, p_all_3, 'o-', 'Color', [85, 170, 85]/255);
+plot(x_ind, p_all_4, 'o-', 'Color', [86 85 149]/255);
 axis([-0.5 0.5 0 1]);
-plot([-.5 .5], [.25 .25], '-', 'Color', [.5 .5 .5]);
-plot([-.5 .5], [30 30], '--', 'Color', [.5 .5 .5]);
-plot([-.5 .5], -[30 30], '--', 'Color', [.5 .5 .5]);
+set(gca,'fontsize',18)
+plot([-.5 .5], [.25 .25], '-', 'LineWidth', 2, 'Color', [.5 .5 .5]);
+plot([-.5 .5], [30 30], '--', 'LineWidth', 2, 'Color', [.5 .5 .5]);
+plot([-.5 .5], -[30 30], '--', 'LineWidth', 2, 'Color', [.5 .5 .5]);
+ylabel('Probability correct', 'Fontsize', 12)
 
-subplot(4,1,4); hold on;
-plot([0 0], [0 12], 'k-')
-plot(x_ind, var_all_0, 'r.-');
-plot(x_ind, var_all_1, 'g.-');
-plot(x_ind, var_all_2, 'b.-');
+% subplot(4,1,4); hold on;
+% plot([0 0], [0 12], 'k-')
+% plot(x_ind, var_all_0, 'r.-');
+% plot(x_ind, var_all_1, 'g.-');
+% plot(x_ind, var_all_2, 'b.-');
+xlabel('Preparation time (sec)');
 
-%% Plot variability below min pt and above min pt for each type, avg.ed across people..
-[reach_var_persub_0, reach_var_persub_1, reach_var_persub_2] = ...
-    compute_variability_by_pt(view_time, dir_error, min_pt);
-% reach_var_persub_0 = nan(size(view_time,2), 2); %subject x low-PT or high-PT
-% reach_var_persub_1 = nan(size(view_time,2), 2); %subject x low-PT or high-PT
-% reach_var_persub_2 = nan(size(view_time,2), 2); %subject x low-PT or high-PT
-% 
-% pt_low_bound = -.4;
-% pt_hgh_bound = .4;
-% N_min_samples = 2;
-% for i_sub = 1:size(view_time,2)
-%     % select out this subject's view time and directional error for each type
-%     this_view_time_0 = view_time(:, i_sub, 1) - min_pt(i_sub);
-%     this_direrr_0 = dir_error(:, i_sub, 1);
-%     
-%     this_view_time_1 = view_time(:, i_sub, 2) - min_pt(i_sub);
-%     this_direrr_1 = dir_error(:, i_sub, 2);
-%     
-%     this_view_time_2 = view_time(:, i_sub, 3) - min_pt(i_sub);
-%     this_direrr_2 = dir_error(:, i_sub, 3);
-%     
-%  % compute the variability (st dev) for subset of PT's in prespecified range
-%     this_inds_0 = this_view_time_0 > pt_low_bound & this_view_time_0 < 0 & abs(this_direrr_0) < 30;
-%     if sum(this_inds_0) > N_min_samples
-%         reach_var_persub_0(i_sub, 1) = sqrt(nanvar(this_direrr_0(this_inds_0)));
-%     end
-%     this_inds_0 = this_view_time_0 > 0 & this_view_time_0 < pt_hgh_bound;
-%     if sum(this_inds_0) > N_min_samples
-%         reach_var_persub_0(i_sub, 2) = sqrt(nanvar(this_direrr_0(this_inds_0)));
-%     end
-%     
-%     this_inds_1 = this_view_time_1 > pt_low_bound & this_view_time_1 < 0 & abs(this_direrr_1) < 30;
-%     if sum(this_inds_1) > N_min_samples
-%         reach_var_persub_1(i_sub, 1) = sqrt(nanvar(this_direrr_1(this_inds_1)));
-%     end
-%     this_inds_1 = this_view_time_1 > 0 & this_view_time_1 < pt_hgh_bound;
-%     if sum(this_inds_1) > N_min_samples
-%         reach_var_persub_1(i_sub, 2) = sqrt(nanvar(this_direrr_1(this_inds_1)));
-%     end
-%     
-%     this_inds_2 = this_view_time_2 > pt_low_bound & this_view_time_2 < 0 & abs(this_direrr_2) < 30;
-%     if sum(this_inds_2) > N_min_samples
-%         reach_var_persub_2(i_sub, 1) = sqrt(nanvar(this_direrr_2(this_inds_2)));
-%     end
-%     this_inds_2 = this_view_time_2 > 0 & this_view_time_2 < pt_hgh_bound;
-%     if sum(this_inds_2) > N_min_samples
-%         reach_var_persub_2(i_sub, 2) = sqrt(nanvar(this_direrr_2(this_inds_2)));
-%     end
-% end
-
-subj_to_include = sum(isnan(reach_var_persub_0),2) < 1 & ...
-    sum(isnan(reach_var_persub_1),2) < 1 & ...
-    sum(isnan(reach_var_persub_2),2) < 1;
-reach_var_persub_0 = reach_var_persub_0(subj_to_include, :);
-reach_var_persub_1 = reach_var_persub_1(subj_to_include, :);
-reach_var_persub_2 = reach_var_persub_2(subj_to_include, :);
-
-figure; hold on;
-errorbar([1 2], nanmedian(reach_var_persub_0, 1),...
-    sqrt(nanvar(reach_var_persub_0, [], 1)./sum(~isnan(reach_var_persub_0),1)), 'r.');
-errorbar([1 2], nanmedian(reach_var_persub_1, 1),...
-    sqrt(nanvar(reach_var_persub_1, [], 1)./sum(~isnan(reach_var_persub_1),1)), 'g.');
-errorbar([1 2], nanmedian(reach_var_persub_2, 1),...
-    sqrt(nanvar(reach_var_persub_2, [], 1)./sum(~isnan(reach_var_persub_2),1)), 'b.');
-axis([0 3 0 30])
-
-% write out data table for proper stats in R:
-var_data_table = [[reach_var_persub_0(:,1); reach_var_persub_1(:,1); reach_var_persub_2(:,1)],...
-    repmat((1:size(reach_var_persub_0,1))', 3, 1),...
-    [zeros(size(reach_var_persub_0,1),1); ones(size(reach_var_persub_1,1),1);...
-    2*ones(size(reach_var_persub_2,1),1)]]; 
-csvwrite('variability_E1', var_data_table)
+desired_pos = [552 538 779 417];
+ff = gcf;
+set(ff, 'Position', desired_pos);
+set(ff, 'PaperOrientation', 'landscape')
+saveas(ff, 'Aggregated_catchtrials.pdf');
 
 %% plot probability of recall as function of appearance of symbol:
 [rec_lpt, rec_hpt] = compute_recall_probability_appearance_order(...
@@ -437,9 +458,9 @@ lpt_per_targ = reshape(nanmean(rec_lpt, 3), 4, size(rec_lpt, 2));
 lpt_all = reshape(nanmean(rec_lpt, 1), size(rec_lpt,2), size(rec_lpt, 3));
 
 figure; hold on;
-    errorbar(1:max_lpt, nanmean(lpt_all(1:max_lpt, :),2),...
+    errorbar((1:max_lpt) - 0.1, nanmean(lpt_all(1:max_lpt, :),2),...
         sqrt(nanvar(lpt_all(1:max_lpt, :), [], 2)./size(lpt_all, 2)), 'b.-',...
-        'MarkerSize', 18, 'LineWidth', 3);
+        'Color', [86 85 149]/255, 'MarkerSize', 18, 'LineWidth', 2);
 axis([0 max_lpt 0 1]);
 
 [rec_lpt_direct, rec_hpt_direct] = compute_recall_probability_appearance_order(...
@@ -449,8 +470,14 @@ axis([0 max_lpt 0 1]);
 lpt_per_targ_direct = reshape(nanmean(rec_lpt_direct, 3), 4, size(rec_lpt_direct, 2));
 lpt_all_direct = reshape(nanmean(rec_lpt_direct, 1), size(rec_lpt_direct,2), size(rec_lpt_direct, 3));
 
-errorbar(1:max_lpt, nanmean(lpt_all_direct(1:max_lpt, :),2),...
+errorbar((1:max_lpt) + 0.1 , nanmean(lpt_all_direct(1:max_lpt, :),2),...
         sqrt(nanvar(lpt_all_direct(1:max_lpt, :), [], 2)./size(lpt_all_direct, 2)), 'g.-',...
-        'MarkerSize', 18, 'LineWidth', 3);
-axis([0 max_lpt 0 1]);
+        'Color', [85, 170, 85]/255, 'MarkerSize', 18, 'LineWidth', 2);
+axis([0, max_lpt + 0.1, 0, 1.1]);
+set(gca,'fontsize',18)
+xlabel('Symbol occurance');
+ylabel('Probability correct');
+f_ = gcf;
+set(f_, 'Position', [0 0 300 420])
+saveas(f_, 'Recall_probability.pdf');
 

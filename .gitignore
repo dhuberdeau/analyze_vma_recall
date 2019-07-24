@@ -1,2 +1,5 @@
 *.mat
 analyze_statLearn_v1.m
+*.pdf
+.DS_Store
+table_*

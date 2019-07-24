@@ -1,6 +1,7 @@
 # perform repeated measures anova on variability data from each group:
 
 library(lme4)
+library(car)
 
 #### DEFINE FUNCTIONS FOR DOING REPEATED MEASURES ANOVAs #######
 
