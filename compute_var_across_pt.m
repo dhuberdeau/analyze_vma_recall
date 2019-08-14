@@ -1,4 +1,4 @@
-function [sp0, sp1, sp2] = compute_var_across_pt(pt, dir_err, type)
+function [sp0, sp1, sp2] = compute_var_across_pt(pt, dir_err, type, n_bins)
 % function [sp0, sp1, sp2] = compute_var_across_pt(pt, dir_err, type)
 %
 % Compute the probability of a movement success within bins of pt for each
@@ -7,7 +7,7 @@ function [sp0, sp1, sp2] = compute_var_across_pt(pt, dir_err, type)
 %
 % David Huberdeau, 12/21/2018
 
-global n_bins EARLIEST_VALID_PT LATEST_VALID_PT
+global EARLIEST_VALID_PT LATEST_VALID_PT
 
 hist_bins = linspace(EARLIEST_VALID_PT, LATEST_VALID_PT, n_bins+1);
 

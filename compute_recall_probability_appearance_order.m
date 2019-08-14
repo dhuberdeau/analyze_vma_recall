@@ -18,15 +18,6 @@ function [recall_prob_lowPT_2, recall_prob_highPT_2] = ...
 %
 % David Huberdeau, Dec. 10, 2018
 
-% target_ = nan(
-% for i_sub = 1:size(target,2)
-%     sub_type = type(:, i_sub);
-%     sub_mov_class = mov_class(sub_type == 2, i_sub);
-%     sub_target = target(sub_type == 2, i_sub);
-%     sub_target_num = target_num(sub_type == 2, i_sub);
-%     sub_pt = pt(sub_type == 2, i_sub);
-%     sub_mpt = min_pt(i_sub);
-% end
 
 if nargin > 5
     search_type = varargin{1};
@@ -125,12 +116,7 @@ recall_prob_lowPT_2 = nan(N_SYMS, N_APPEAR, N_SUBS);
 recall_prob_highPT_2 = nan(N_SYMS, N_APPEAR, N_SUBS);
 
 for i_sub = 1:N_SUBS
-%     sub_type = type(:, i_sub);
-%     sub_mov_class = mov_class(sub_type == 2, i_sub);
-%     sub_target = target(sub_type == 2, i_sub);
-%     sub_target_num = target_num(sub_type == 2, i_sub);
-%     sub_pt = pt(sub_type == 2, i_sub);
-%     sub_mpt = min_pt(i_sub);
+
 
 %     sub_type = type(:, i_sub);
     sub_mov_class = mov_class(:, i_sub);
@@ -185,31 +171,4 @@ for i_sub = 1:N_SUBS
     end
 end
 
-% for i_sub = 1:size(mov_class, 2)
-%     sub_mov_class_ = mov_class(:, i_sub);
-%     sub_target_ = target(:, i_sub);
-%     sub_target_num_ = target_num(:, i_sub);
-% %     sub_trial_ = 1:length(sub_target_);
-%     
-%     sub_pt = pt(:, i_sub);
-%     sub_mpt = min_pt(i_sub);
-%     
-%     sub_mov_class = sub_mov_class_(sub_pt < sub_mpt);
-%     sub_target = sub_target_(sub_pt < sub_mpt);
-%     sub_target_num = sub_target_num_(sub_pt < sub_mpt);
-% %     sub_trial = sub_trial_(sub_pt < sub_mpt);
-%     sub_trial = 1:length(sub_target);
-%     
-%     for i_targ = 1:N_SYMS
-%         targ_trial = sub_trial(sub_target == i_targ);
-%         for i_tr = 1:length(targ_trial)
-%             try
-%             recall_prob_lowPT(i_targ, i_tr, i_sub) = ...
-%                 sub_mov_class(targ_trial(i_tr)) == sub_target_num(targ_trial(i_tr));
-%             catch
-%                 pause;
-%             end
-%         end
-%     end
-% end
 

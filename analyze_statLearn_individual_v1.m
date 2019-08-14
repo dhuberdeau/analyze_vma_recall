@@ -3,9 +3,9 @@ function [data_indiv, varargout] = analyze_statLearn_individual_v1(Data, N_TARGS
 
 % get global variables
 global n_bins EARLIEST_VALID_PT LATEST_VALID_PT SUCCESS_TH_ANGLE
-EARLIEST_VALID_PT = -.2;
-LATEST_VALID_PT = .85;
-SUCCESS_TH_ANGLE = 30;
+% EARLIEST_VALID_PT = -.1;
+% LATEST_VALID_PT = .7;
+% SUCCESS_TH_ANGLE = 30;
 
 %% supress unneccessary warnings:
 warn_id = 'MATLAB:interp1:NaNstrip';

@@ -1,31 +1,11 @@
 function [data_grp, err_grp] = analyze_statLearn_group_v1(subject_list, N_TARGETS, varargin)
 
-%% define subject list:
-% subject_list = {...
-% 'Data_SP026_03222018_E2.mat',...
-% 'Data_S048_04052018_E2.mat',...
-% ...% 'Data_S049_04052018_E2.mat'... %poor TR compliance
-% 'Data_S050_04052018_E2.mat',...
-% 'Data_S051_04052018_E2.mat',...
-% 'Data_S052_04052018_E2.mat',...
-% 'Data_S053_04052018_E2.mat',...
-% ...% 'Data_S054_04052018_E2.mat',... %poor TR compliance
-% ...% 'Data_S055_04052018_E2.mat',... %poor TR compliance
-% 'Data_S056_04062018_E2.mat',...
-% 'Data_S057_04062018_E2.mat',...
-% 'Data_S058_04062018_E2.mat',...
-% 'Data_S059_04062018_E2.mat',...
-% 'Data_S060_04062018_E2.mat',...
-% 'Data_S061_04062018_E2.mat',...
-% 'Data_S062_04062018_E2.mat',...
-% 'Data_S063_04062018_E2.mat',...    
-% 'Data_S064_04062018_E2.mat',...
-% 'Data_S065_04062018_E2.mat',...
-% 'Data_S066_04092018_E2.mat',...
-% 'Data_S069_04092018_E2_fixed.mat',... 
-% ...% 'Data_S070_04092018_E2.mat',... %poor TR compliance
-% 'Data_S079_04112018_E2.mat',...
-%     };
+global EARLIEST_VALID_PT LATEST_VALID_PT
+% EARLIEST_VALID_PT = -.1;
+% LATEST_VALID_PT = .7;
+% SUCCESS_TH_ANGLE = 30;
+
+%% define some constants:
 
 if nargin < 3
     plot_bool = 1;
@@ -45,6 +25,11 @@ switch N_TARGETS
     otherwise
         error('Invalid number of targets specified.');
 end
+
+N_TRIALS = 312; % this is how many trials were done across experiments 
+% (a 12-trial block for practice and 5 60-trials blocks)
+
+%% setup data structures:
 
 succ_block_1 = nan(4, length(subject_list));
 succ_block_2 = nan(4, length(subject_list));
@@ -74,12 +59,11 @@ succ_block_1_supTH_symb_marginal = nan(N_SYMBOLS, length(subject_list));
 succ_block_2_supTH_symb_marginal = nan(N_SYMBOLS, length(subject_list));
 
 min_pt_all = nan(1, length(subject_list));
-viewtime_all = nan(400, length(subject_list));
-de_all = nan(400, length(subject_list));
-type_all = nan(400, length(subject_list));
-% conf_mat = nan(N_TARGETS,N_TARGETS,length(subject_list));
-move_class_all = nan(400, length(subject_list));
-targ_all = nan(400, length(subject_list));
+viewtime_all = nan(N_TRIALS, length(subject_list));
+de_all = nan(N_TRIALS, length(subject_list));
+type_all = nan(N_TRIALS, length(subject_list));
+move_class_all = nan(N_TRIALS, length(subject_list));
+targ_all = nan(N_TRIALS, length(subject_list));
 
 h1 = figure;
 individ_analysis_errors = {};
@@ -145,12 +129,23 @@ for i_sub = 1:length(subject_list)
     Kin_x = data_indiv.kinematics{1};
     Kin_y = data_indiv.kinematics{2};
 
-    viewtime_all(1:length(data_indiv.ViewTime), i_sub) = data_indiv.ViewTime;
-    de_all(1:length(Dir_e), i_sub) = Dir_e;
-    type_all(1:length(Data.Type), i_sub) = Data.Type;
-    targ_all(1:length(Data.Target), i_sub) = Data.Target;
-    move_class_all(1:length(Data.Target), i_sub) = data_indiv.Mov_class;
-    
+%     viewtime_all(1:length(data_indiv.ViewTime), i_sub) = data_indiv.ViewTime;
+%     de_all(1:length(Dir_e), i_sub) = Dir_e;
+%     type_all(1:length(Data.Type), i_sub) = Data.Type;
+%     targ_all(1:length(Data.Target), i_sub) = Data.Target;
+%     move_class_all(1:length(Data.Target), i_sub) = data_indiv.Mov_class;
+
+    viewtime_all(:, i_sub) = data_indiv.ViewTime(...
+        1:min([N_TRIALS, length(data_indiv.ViewTime)]));
+    de_all(:, i_sub) = Dir_e(...
+        1:min([N_TRIALS, length(data_indiv.ViewTime)]));
+    type_all(:, i_sub) = Data.Type(...
+        1:min([N_TRIALS, length(data_indiv.ViewTime)]));
+    targ_all(:, i_sub) = Data.Target(...
+        1:min([N_TRIALS, length(data_indiv.ViewTime)]));
+    move_class_all(:, i_sub) = data_indiv.Mov_class(...
+        1:min([N_TRIALS, length(data_indiv.ViewTime)]));
+
 %     close all;
     succ_block_1(:, i_sub) = pr_corr_block_1';
     succ_block_2(:, i_sub) = pr_corr_block_2';
@@ -201,8 +196,8 @@ for i_sub = 1:length(subject_list)
 end
 
 %%
-EARLIEST_VALID_PT = -.2;
-LATEST_VALID_PT = .85;
+% EARLIEST_VALID_PT = -.2;
+% LATEST_VALID_PT = .85;
 if plot_bool
     figure;
     for i_sub = 1:length(subject_list)
@@ -214,6 +209,9 @@ if plot_bool
         axis([EARLIEST_VALID_PT, LATEST_VALID_PT, -200 200])
     end
 end
+
+%% save data out for Statistical analyses in R:
+
 
 %%
 valid_subs = min_pt_all > .15;

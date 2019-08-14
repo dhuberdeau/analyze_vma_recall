@@ -21,16 +21,24 @@
 % first full block. 
 
 % define globals:
-global n_bins EARLIEST_VALID_PT LATEST_VALID_PT SUCCESS_TH_ANGLE RED_COLOR GREEN_COLOR BLUE_COLOR
-n_bins = 6;
-SUCCESS_TH_ANGLE = 30;
-EARLIEST_VALID_PT = -.1;
-LATEST_VALID_PT = .7;
 
-RED_COLOR = [172, 59, 59]/255;
-GREEN_COLOR = [85, 170, 85]/255; 
-BLUE_COLOR = [86 85 149]/255;
+global N_BINS EARLIEST_VALID_PT LATEST_VALID_PT SUCCESS_TH_ANGLE ...
+    GREEN_COLOR BLUE_COLOR RED_COLOR HOME_DIR
 
+if isempty(N_BINS)
+    % if these have not been set yet (e.g. only running this analysis and
+    % not main_analysis.m
+    N_BINS = 6;
+    SUCCESS_TH_ANGLE = 30;
+    EARLIEST_VALID_PT = -.1;
+    LATEST_VALID_PT = .7;
+
+    RED_COLOR = [172, 59, 59]/255;
+    GREEN_COLOR = [85, 170, 85]/255; 
+    BLUE_COLOR = [86 85 149]/255;
+end
+
+LIGHT_RED = [255, 200, 200]/255;
 RELATIVE_PT_MINMAX = 0.5;
 TRIAL_QUARTERS = 60;
 
@@ -130,7 +138,7 @@ memory_test_result_inds_3T_B = ...
 
 load('individual_memory_test_results.mat');
 
-%%
+%% Compute behavioral metrics for all participants across experiments
 
 group_subjects = {subject_list_3T, subject_list_4T, subject_list_6T,...
     subject_list_3T_B};
@@ -184,25 +192,12 @@ for i_grp = group_analysis_list
     type_all{i_grp} = data_grp.Type_all;
     pt_all{i_grp} = data_grp.viewtime_all;
     dir_err_all{i_grp} = data_grp.DE_all;
-
-    % compare symbol learn order
-    strat = data_grp.succ_block_2_symb_marginal(re_order_symbols{i_grp}, :);
-    [~, strat_sort] = sort(strat, 'descend');
-    figure;
-    k_order = 1;
-    order_list = 1:2:N_SYMBS_GRP(i_grp);
-    for i_order = order_list
-        subplot(1,N_SYMBS_GRP(i_grp)/2,k_order)
-        bar(1:N_SYMBS_GRP(i_grp), sum(strat_sort == i_order | ...
-            strat_sort == (i_order + 1), 2));
-        axis([.5 N_SYMBS_GRP(i_grp) + .5 0 10])
-        k_order = k_order + 1;
-    end
     
     disp(['Group ', num2str(i_grp), ' completed']);
 end
 
 %% plot statistical learning curves with memory test overlain for each group
+
 f1 = figure;
 axis_lims = [0 4.5 -0.1 1];
 cond_colors = {'g', 'b'};
@@ -284,36 +279,29 @@ csvwrite('memTest_score_E2_6T', memTest_table{3});
 csvwrite('memTest_score_E2_3Tb_1', memTest_table{4});
 csvwrite('memTest_score_E2_3Tb_2', memTest_table{5});
 
-
+% run statistics in R:
+!#bin/bash Rscript [HOME_DIR, filesep, cross_situational_learning_stats_v3.R]
+% results are in 'lme_results.mat' and 'memory_test_results_*.mat'
 %% compute probability of recall as function of appearances of symbol
 symbol_repeat_max = [18, 8, 8, 18];
-figure; 
-for i_grp = group_analysis_list
-    [rec_lpt, rec_hpt] = compute_recall_probability_appearance_order(...
-        mov_class_all{i_grp}, target_all{i_grp}, type_all{i_grp},...
-        pt_all{i_grp}, min_pt_all(:,i_grp));
-    
-    lpt_per_targ = reshape(nanmean(rec_lpt, 3), N_SYMBS_GRP(i_grp), size(rec_lpt, 2));
-    lpt_all = reshape(nanmean(rec_lpt, 1), size(rec_lpt,2), size(rec_lpt, 3));
-    
-    subplot(1,4,i_grp); hold on;
-    plot(1:size(rec_lpt,2), lpt_per_targ');
-    axis([0 symbol_repeat_max(i_grp) 0 1]);
-    
-    [rec_lpt_direct, rec_hpt_direct] = compute_recall_probability_appearance_order(...
-        mov_class_all{i_grp}, target_all{i_grp}, type_all{i_grp},...
-        pt_all{i_grp}, min_pt_all(:,i_grp), 1);
-    
-    lpt_per_targ_direct = reshape(nanmean(rec_lpt_direct, 3), N_SYMBS_GRP(i_grp), size(rec_lpt_direct, 2));
-    lpt_all_direct = reshape(nanmean(rec_lpt_direct, 1), size(rec_lpt_direct,2), size(rec_lpt_direct, 3));
-    
-    subplot(1,4,i_grp); hold on;
-    plot(1:size(rec_lpt_direct,2), lpt_per_targ_direct');
-    axis([0 symbol_repeat_max(i_grp) 0 1]);
-end
 
-figure; 
+f2 = figure; 
 for i_grp = group_analysis_list
+        % for no pre-cued trials
+    [rec_lpt_none, rec_hpt_none] = compute_recall_probability_appearance_order(...
+        mov_class_all{i_grp}, target_all{i_grp}, type_all{i_grp},...
+        pt_all{i_grp}, min_pt_all(:,i_grp), 0);
+    
+    lpt_per_targ_none = reshape(nanmean(rec_lpt_none, 3), size(rec_lpt_none, 1), size(rec_lpt_none, 2));
+    lpt_all_none = reshape(nanmean(rec_lpt_none, 1), size(rec_lpt_none,2), size(rec_lpt_none, 3));
+    
+    subplot(1,4,i_grp); hold on;
+    errorbar(1:symbol_repeat_max(i_grp), nanmean(lpt_all_none(1:symbol_repeat_max(i_grp), :),2),...
+        sqrt(nanvar(lpt_all_none(1:symbol_repeat_max(i_grp), :), [], 2)./size(lpt_all_none, 2)), 'Color', LIGHT_RED, ...
+        'MarkerSize', 18, 'LineWidth', 2);
+    axis([0 symbol_repeat_max(1) 0 1]);
+    
+    
     % for direct cued trials
     [rec_lpt_direct, rec_hpt_direct] = compute_recall_probability_appearance_order(...
         mov_class_all{i_grp}, target_all{i_grp}, type_all{i_grp},...
@@ -324,23 +312,11 @@ for i_grp = group_analysis_list
     
     subplot(1,4,i_grp); hold on;
     errorbar(1:symbol_repeat_max(i_grp), nanmean(lpt_all_direct(1:symbol_repeat_max(i_grp), :),2),...
-        sqrt(nanvar(lpt_all_direct(1:symbol_repeat_max(i_grp), :), [], 2)./size(lpt_all_direct, 2)), 'g.-',...
-        'MarkerSize', 18, 'LineWidth', 3);
+        sqrt(nanvar(lpt_all_direct(1:symbol_repeat_max(i_grp), :), [], 2)./size(lpt_all_direct, 2)), 'Color', GREEN_COLOR,...
+        'MarkerSize', 18, 'LineWidth', 2);
     axis([0 symbol_repeat_max(1) 0 1]);
     
-    % for no pre-cued trials
-    [rec_lpt_none, rec_hpt_none] = compute_recall_probability_appearance_order(...
-        mov_class_all{i_grp}, target_all{i_grp}, type_all{i_grp},...
-        pt_all{i_grp}, min_pt_all(:,i_grp), 0);
-    
-    lpt_per_targ_none = reshape(nanmean(rec_lpt_none, 3), size(rec_lpt_none, 1), size(rec_lpt_none, 2));
-    lpt_all_none = reshape(nanmean(rec_lpt_none, 1), size(rec_lpt_none,2), size(rec_lpt_none, 3));
-    
-    subplot(1,4,i_grp); hold on;
-    errorbar(1:symbol_repeat_max(i_grp), nanmean(lpt_all_none(1:symbol_repeat_max(i_grp), :),2),...
-        sqrt(nanvar(lpt_all_none(1:symbol_repeat_max(i_grp), :), [], 2)./size(lpt_all_none, 2)), 'r.-',...
-        'MarkerSize', 18, 'LineWidth', 3);
-    axis([0 symbol_repeat_max(1) 0 1]);
+
     
     % for symbolicly cued trials
     [rec_lpt, rec_hpt] = compute_recall_probability_appearance_order(...
@@ -352,26 +328,18 @@ for i_grp = group_analysis_list
     
     subplot(1,4,i_grp); hold on;
     errorbar(1:symbol_repeat_max(i_grp), nanmean(lpt_all(1:symbol_repeat_max(i_grp), :),2),...
-        sqrt(nanvar(lpt_all(1:symbol_repeat_max(i_grp), :), [], 2)./size(lpt_all, 2)), 'b.-',...
-        'MarkerSize', 18, 'LineWidth', 3);
+        sqrt(nanvar(lpt_all(1:symbol_repeat_max(i_grp), :), [], 2)./size(lpt_all, 2)), 'Color', BLUE_COLOR, ...
+        'MarkerSize', 18, 'LineWidth', 2);
     axis([0 symbol_repeat_max(1) 0 1]);
+    
+    xlabel('Trial occurance');
+    ylabel('Success probability');
 end
+set(f2, 'Position', [1 197 684 436]);
+saveas(f2, 'Symbole_learning_by_occurance.pdf');
 
-%% compare minimum PT across experiments (which had differing numbers of 
-% targets) to see if the power-law holds (i.e. the tendency for choice RT
-% to increase as a function of the log-number of options). 
-f_mpt = figure;
-min_pt_corr = min_pt_all - .06; % correct the minimum PT.
-errorbar([2.95 4 6 3.05], ...
-    nanmean(min_pt_corr,1), ...
-    sqrt(nanvar(min_pt_corr)./sum(~isnan(min_pt_corr))),...
-    'ks', 'LineWidth', 2);
-axis([2.5 6.5 .2 .25])
-ylabel('Min PT (sec)');
-xlabel('Number of targets');
-set(f_mpt, 'Position', [560, 700, 487 242])
-saveas(f_mpt, 'MinPT_by_TargetNum.pdf')
 %% compute pr(succ | pt) for first half and second half of blocks for each group:
+% Doesn't go into the paper but is a nice confirmation of data.
 
 inds_init = 1:(12+60);
 inds_half_1 = inds_init(end) + (1:120);
@@ -379,18 +347,18 @@ inds_half_2 = inds_half_1(end) + (1:120);
 
 figure;
 sub_plot_inds = [1 2; 3 4; 5 6; 7 8];
-hist_bins = linspace(EARLIEST_VALID_PT, LATEST_VALID_PT, n_bins+1);
+hist_bins = linspace(EARLIEST_VALID_PT, LATEST_VALID_PT, N_BINS+1);
 x_inds = hist_bins(1:(end-1)) + diff(hist_bins)/2;
 for i_grp = group_analysis_list
-    grp_pr_succ_0 = nan(n_bins, size(pt_all{i_grp}, 2));
-    grp_pr_succ_half1 = nan(n_bins, size(pt_all{i_grp}, 2), 3);
-    grp_pr_succ_half2 = nan(n_bins, size(pt_all{i_grp}, 2), 3);
+    grp_pr_succ_0 = nan(N_BINS, size(pt_all{i_grp}, 2));
+    grp_pr_succ_half1 = nan(N_BINS, size(pt_all{i_grp}, 2), 3);
+    grp_pr_succ_half2 = nan(N_BINS, size(pt_all{i_grp}, 2), 3);
     for i_sub = 1:size(pt_all{i_grp},2)
         [grp_pr_succ_0(:, i_sub), ~, ~] = ...
          compute_succ_prob_across_pt(...
          pt_all{i_grp}(inds_init, i_sub),...
          dir_err_all{i_grp}(inds_init, i_sub),...
-         type_all{i_grp}(inds_init, i_sub));
+         type_all{i_grp}(inds_init, i_sub), N_BINS);
         
         [grp_pr_succ_half1(:, i_sub, 1),...
             grp_pr_succ_half1(:, i_sub, 2),... 
@@ -398,7 +366,7 @@ for i_grp = group_analysis_list
          compute_succ_prob_across_pt(...
             pt_all{i_grp}(inds_half_1, i_sub), ...
             dir_err_all{i_grp}(inds_half_1, i_sub), ...
-            type_all{i_grp}(inds_half_1, i_sub));
+            type_all{i_grp}(inds_half_1, i_sub), N_BINS);
         
         [grp_pr_succ_half2(:, i_sub, 1),...
             grp_pr_succ_half2(:, i_sub, 2),...
@@ -406,7 +374,7 @@ for i_grp = group_analysis_list
          compute_succ_prob_across_pt(...
             pt_all{i_grp}(inds_half_2, i_sub), ...
             dir_err_all{i_grp}(inds_half_2, i_sub), ...
-            type_all{i_grp}(inds_half_2, i_sub));
+            type_all{i_grp}(inds_half_2, i_sub), N_BINS);
     end
     subplot(4,2,sub_plot_inds(i_grp, 1)); hold on
     errorbar(x_inds, nanmean(grp_pr_succ_0,2),...
@@ -585,8 +553,11 @@ for i_grp = group_analysis_list
         [ones(length(quantile_table), 1); 2*ones(length(quantile_table),1)],...
         [var_table_1; var_table_2]]);
 end
+set(h1, 'Position', [72 549 818 406]);
+set(h1, 'PaperOrientation', 'landscape')
+saveas(h1, 'Groups_by_quarter_PC_scatter.pdf');
+%% 
 
-%%
 % Plot success vs. PT and var. vs. PT, aligned to minPT
 h1 = figure;
 h2 = figure;
@@ -615,12 +586,14 @@ for i_grp = group_analysis_list
     de_q4 = dir_err_all{i_grp}(inds_q4, :);
     
     [ps0, ~, ~] = compute_succ_prob_across_pt(...
-        pt_init(:), de_init(:), type_init(:));
+        pt_init(:), de_init(:), type_init(:), n_bins);
     
     var_inds_init = abs(de_init(:)) < SUCCESS_TH_ANGLE;
     [vr0, ~, ~] = compute_var_across_pt(...
         pt_init(var_inds_init),...
-        de_init(var_inds_init), type_init(var_inds_init));
+        de_init(var_inds_init),...
+        type_init(var_inds_init),...
+        n_bins);
     % plot initial block with only type 0 trials:
     figure(h1)
     subplot(4,5,sub_plot_inds(i_grp, 1)); hold on;
@@ -673,6 +646,7 @@ for i_grp = group_analysis_list
 
     % To use quarters of all trials: 
     data_mat_pc_quarters = [...
+        data_mat_pc_q0(:,1:4), zeros(size(data_mat_pc_q0,1), 1);...
         data_mat_pc_q1(:,1:4), ones(size(data_mat_pc_q1,1), 1);...
         data_mat_pc_q2(:,1:4), 2*ones(size(data_mat_pc_q2,1), 1);...
         data_mat_pc_q3(:,1:4), 3*ones(size(data_mat_pc_q3,1), 1);...
@@ -680,6 +654,7 @@ for i_grp = group_analysis_list
     
     % To use numeric trial: 
     data_mat_pc_trials = [...
+        data_mat_pc_q0(:,1:5);...
         data_mat_pc_q1(:,1:5);...
         data_mat_pc_q2(:,1:5);...
         data_mat_pc_q3(:,1:5);...
@@ -689,12 +664,14 @@ for i_grp = group_analysis_list
     csvwrite(['raw_data_mat_E2_pc_trials', num2str(i_grp)], data_mat_pc_trials);
     
     [~, ps1, ps2] = compute_succ_prob_across_pt(...
-        pt_q1(:), de_q1(:), type_q1(:));
+        pt_q1(:), de_q1(:), type_q1(:), n_bins);
     
     var_inds_half1 = abs(de_q1(:)) < SUCCESS_TH_ANGLE;
     [~, vr1, vr2] = compute_var_across_pt(...
         pt_q1(var_inds_half1),...
-        de_q1(var_inds_half1), type_q1(var_inds_half1));    
+        de_q1(var_inds_half1),...
+        type_q1(var_inds_half1),...
+        n_bins);    
     
     % plot block 1: type 1 & 2 trials
     figure(h1)
@@ -715,12 +692,14 @@ for i_grp = group_analysis_list
     plot([0 0], [0 20], 'k-')
     
     [~, ps1, ps2] = compute_succ_prob_across_pt(...
-        pt_q2(:), de_q2(:), type_q2(:));
+        pt_q2(:), de_q2(:), type_q2(:), n_bins);
     
     var_inds_half2 = abs(de_q2(:)) < SUCCESS_TH_ANGLE;
     [~, vr1, vr2] = compute_var_across_pt(...
         pt_q2(var_inds_half2),...
-        de_q2(var_inds_half2), type_q2(var_inds_half2));
+        de_q2(var_inds_half2),...
+        type_q2(var_inds_half2),...
+        n_bins);
     % plot block 2: type 1 & 2 trials
     figure(h1)
     subplot(4,5,sub_plot_inds(i_grp, 3)); hold on;
@@ -740,12 +719,14 @@ for i_grp = group_analysis_list
     plot([0 0], [0 20], 'k-')
     
     [~, ps1, ps2] = compute_succ_prob_across_pt(...
-        pt_q3(:), de_q3(:), type_q3(:));
+        pt_q3(:), de_q3(:), type_q3(:), n_bins);
     
     var_inds_half2 = abs(de_q3(:)) < SUCCESS_TH_ANGLE;
     [~, vr1, vr2] = compute_var_across_pt(...
         pt_q3(var_inds_half2),...
-        de_q3(var_inds_half2), type_q3(var_inds_half2));
+        de_q3(var_inds_half2),...
+        type_q3(var_inds_half2),...
+        n_bins);
     % plot block 3: type 1 & 2 trials
     figure(h1)
     subplot(4,5,sub_plot_inds(i_grp, 4)); hold on;
@@ -765,12 +746,14 @@ for i_grp = group_analysis_list
     plot([0 0], [0 20], 'k-')
     
     [~, ps1, ps2] = compute_succ_prob_across_pt(...
-        pt_q4(:), de_q4(:), type_q4(:));
+        pt_q4(:), de_q4(:), type_q4(:), n_bins);
     
     var_inds_half2 = abs(de_q4(:)) < SUCCESS_TH_ANGLE;
     [~, vr1, vr2] = compute_var_across_pt(...
         pt_q4(var_inds_half2),...
-        de_q4(var_inds_half2), type_q4(var_inds_half2));
+        de_q4(var_inds_half2),...
+        type_q4(var_inds_half2),...
+        n_bins);
     % plot block 4: type 1 & 2 trials
     figure(h1)
     subplot(4,5,sub_plot_inds(i_grp, 5)); hold on;
@@ -789,12 +772,38 @@ for i_grp = group_analysis_list
     axis([-.5 .5 0 20])
     plot([0 0], [0 20], 'k-')
 end
-% % re-set globals:
-% EARLIEST_VALID_PT = -0.2; LATEST_VALID_PT = 0.8; n_bins = 6;
 
+%% Run Rscript for sigmoid analysis:
+% #!bin/bash Rscript [HOME_DIR, filesep, sigmoid_fit_E2_d.R]
+experiment_names = {'3T', '4T', '6T', '3Tb'};
+quarter_index = 0:4;
+plot_index = [1:5; 6:10; 11:15; 16:20]';
+f_sig1 = figure;
+for i_grp = 1:4
+    for i_qrt = 1:5
+        load(['sigmoid_fit_E2_', experiment_names{i_grp}, '_', num2str(quarter_index(i_qrt)), '.mat']);
+
+        subplot(4,5,plot_index(i_qrt, i_grp)); hold on;
+
+        % important note: 
+        % y_1 -> type 1
+        % y_2 -> type 2
+        % y_3 -> catch trials (type 3 or 4)
+        if i_qrt == 1
+            plot(sig_out.t, sig_out.y_0, 'LineWidth', 2, 'Color', RED_COLOR);
+        else
+            plot(sig_out.t, sig_out.y_1, 'LineWidth', 2, 'Color', GREEN_COLOR);
+            plot(sig_out.t, sig_out.y_2, 'LineWidth', 2, 'Color', BLUE_COLOR);
+            plot(sig_out.t, sig_out.y_3, 'k', 'LineWidth', 2);
+        end
+    end
+end
+set(f_sig1, 'Position', [72 549 818 406]);
+set(f_sig1, 'PaperOrientation', 'landscape')
+saveas(f_sig1, 'Groups_sigmoid_fit.pdf');
 %%
 % Plot directional error vs. PT of catch trials , aligned to minPT
-figure;
+fig_catch = figure;
 sub_plot_inds = [1 2 3 4 5; 6 7 8 9 10; 11 12 13 14 15; 16 17 18 19 20];
 for i_grp = group_analysis_list
     pt_q1 = pt_all{i_grp}(inds_q1, :);
@@ -858,3 +867,6 @@ for i_grp = group_analysis_list
     plot([0 0], [-200 200], 'k-')
     axis([-.5 .5 -200 200])
 end
+set(fig_catch, 'Position', [72 549 818 406]);
+set(fig_catch, 'PaperOrientation', 'landscape')
+saveas(fig_catch, 'Groups_PC_catch_scatter.pdf');
