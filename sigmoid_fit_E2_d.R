@@ -1,6 +1,8 @@
 library(aod)
 library(R.matlab)
 
+setwd(getwd())
+
 ### DEFINE FIT FUNCTION ###
 fit_sigmoid <- function(dat){
   dat <- dat[which(dat$quarter > 0),]
@@ -96,9 +98,9 @@ plot_sigmoid_0 <- function(pc, pt, fit){
 ### LOAD AND ORGANIZE DATA ###
 
 ### 3-target variant ###
-pc_data_quarters <- read.csv('/Users/david/OneDrive/Documents/Yale/NTB_lab/batters_problem/vma_recall_repo/raw_data_mat_E2_pc_quarters1',
+pc_data_quarters <- read.csv('raw_data_mat_E2_pc_quarters1',
                     header = FALSE, na.strings = 'NaN')
-pc_data_trials <- read.csv('/Users/david/OneDrive/Documents/Yale/NTB_lab/batters_problem/vma_recall_repo/raw_data_mat_E2_pc_trials1',
+pc_data_trials <- read.csv('raw_data_mat_E2_pc_trials1',
                              header = FALSE, na.strings = 'NaN')
 
 # head(pc_data_trials)
@@ -116,9 +118,9 @@ dat_q3 <- data.frame(
 dat_q_3 <- na.exclude(dat_q3)
 
 ### 4-target variant ###
-pc_data_quarters <- read.csv('/Users/david/OneDrive/Documents/Yale/NTB_lab/batters_problem/vma_recall_repo/raw_data_mat_E2_pc_quarters2',
+pc_data_quarters <- read.csv('raw_data_mat_E2_pc_quarters2',
                              header = FALSE, na.strings = 'NaN')
-pc_data_trials <- read.csv('/Users/david/OneDrive/Documents/Yale/NTB_lab/batters_problem/vma_recall_repo/raw_data_mat_E2_pc_trials2',
+pc_data_trials <- read.csv('raw_data_mat_E2_pc_trials2',
                            header = FALSE, na.strings = 'NaN')
 
 # head(pc_data_trials)
@@ -136,9 +138,9 @@ dat_q4 <- data.frame(
 dat_q_4 <- na.exclude(dat_q4)
 
 ### 6-target variant ###
-pc_data_quarters <- read.csv('/Users/david/OneDrive/Documents/Yale/NTB_lab/batters_problem/vma_recall_repo/raw_data_mat_E2_pc_quarters3',
+pc_data_quarters <- read.csv('raw_data_mat_E2_pc_quarters3',
                              header = FALSE, na.strings = 'NaN')
-pc_data_trials <- read.csv('/Users/david/OneDrive/Documents/Yale/NTB_lab/batters_problem/vma_recall_repo/raw_data_mat_E2_pc_trials3',
+pc_data_trials <- read.csv('raw_data_mat_E2_pc_trials3',
                            header = FALSE, na.strings = 'NaN')
 
 # head(pc_data_trials)
@@ -156,9 +158,9 @@ dat_q6 <- data.frame(
 dat_q_6 <- na.exclude(dat_q6)
 
 ### 3-target-replication variant ###
-pc_data_quarters <- read.csv('/Users/david/OneDrive/Documents/Yale/NTB_lab/batters_problem/vma_recall_repo/raw_data_mat_E2_pc_quarters4',
+pc_data_quarters <- read.csv('raw_data_mat_E2_pc_quarters4',
                              header = FALSE, na.strings = 'NaN')
-pc_data_trials <- read.csv('/Users/david/OneDrive/Documents/Yale/NTB_lab/batters_problem/vma_recall_repo/raw_data_mat_E2_pc_trials4',
+pc_data_trials <- read.csv('raw_data_mat_E2_pc_trials4',
                            header = FALSE, na.strings = 'NaN')
 
 # head(pc_data_trials)
@@ -188,7 +190,7 @@ for (dqrt in c(1,2,3,4)){
                                       fit_data_3$qt,
                                       dqrt, fit_3)
   writeMat(
-      paste(c("/Users/david/OneDrive/Documents/Yale/NTB_lab/batters_problem/vma_recall_repo/sigmoid_fit_E2_",
+      paste(c("sigmoid_fit_E2_",
               "3T_", toString(dqrt), ".mat"), sep="", collapse=""), sig_out = sig_out)
   }
 fit_3_out_0 <- fit_sigmoid_0(dat_q_3)
@@ -196,7 +198,7 @@ fit_3_0 <- fit_3_out_0[[1]]
 fit_data_3_0 <- fit_3_out_0[[2]]
 sig_out <- plot_sigmoid_0(fit_data_3_0$y, fit_data_3_0$pt, fit_3_0)
 writeMat(
-    paste(c("/Users/david/OneDrive/Documents/Yale/NTB_lab/batters_problem/vma_recall_repo/sigmoid_fit_E2_",
+    paste(c("sigmoid_fit_E2_",
             "3T_0.mat"), sep="", collapse=""), sig_out = sig_out)
 summary(fit_3)
 
@@ -210,7 +212,7 @@ for (dqrt in c(1,2,3,4)){sig_out <- plot_sigmoid_by_quarter(fit_data_4$y,
                                                             fit_data_4$qt,
                                                             dqrt, fit_4)
     writeMat(
-      paste(c("/Users/david/OneDrive/Documents/Yale/NTB_lab/batters_problem/vma_recall_repo/sigmoid_fit_E2_",
+      paste(c("sigmoid_fit_E2_",
               "4T_", toString(dqrt), ".mat"), sep="", collapse=""), sig_out = sig_out)
   }
 fit_4_out_0 <- fit_sigmoid_0(dat_q_4)
@@ -218,7 +220,7 @@ fit_4_0 <- fit_4_out_0[[1]]
 fit_data_4_0 <- fit_4_out_0[[2]]
 sig_out <- plot_sigmoid_0(fit_data_4_0$y, fit_data_4_0$pt, fit_4_0)
 writeMat(
-    paste(c("/Users/david/OneDrive/Documents/Yale/NTB_lab/batters_problem/vma_recall_repo/sigmoid_fit_E2_",
+    paste(c("sigmoid_fit_E2_",
             "4T_0.mat"), sep="", collapse=""), sig_out = sig_out)
 summary(fit_4)
 
@@ -233,7 +235,7 @@ for (dqrt in c(1,2,3,4)){sig_out <- plot_sigmoid_by_quarter(fit_data_6$y,
                                                             dqrt, fit_6)
 
       writeMat(
-        paste(c("/Users/david/OneDrive/Documents/Yale/NTB_lab/batters_problem/vma_recall_repo/sigmoid_fit_E2_",
+        paste(c("sigmoid_fit_E2_",
                 "6T_", toString(dqrt), ".mat"), sep="", collapse=""), sig_out = sig_out)
     }
 fit_6_out_0 <- fit_sigmoid_0(dat_q_6)
@@ -241,7 +243,7 @@ fit_6_0 <- fit_6_out_0[[1]]
 fit_data_6_0 <- fit_6_out_0[[2]]
 sig_out <- plot_sigmoid_0(fit_data_6_0$y, fit_data_6_0$pt, fit_6_0)
 writeMat(
-    paste(c("/Users/david/OneDrive/Documents/Yale/NTB_lab/batters_problem/vma_recall_repo/sigmoid_fit_E2_",
+    paste(c("sigmoid_fit_E2_",
             "6T_0.mat"), sep="", collapse=""), sig_out = sig_out)
 summary(fit_6)
 
@@ -255,7 +257,7 @@ for (dqrt in c(1,2,3,4)){sig_out <- plot_sigmoid_by_quarter(fit_data_3b$y,
                                                             fit_data_3b$qt,
                                                             dqrt, fit_3b)
   writeMat(
-    paste(c("/Users/david/OneDrive/Documents/Yale/NTB_lab/batters_problem/vma_recall_repo/sigmoid_fit_E2_",
+    paste(c("sigmoid_fit_E2_",
             "3Tb_", toString(dqrt), ".mat"), sep="", collapse=""), sig_out = sig_out)
 }
 fit_3b_out_0 <- fit_sigmoid_0(dat_q_3b)
@@ -263,6 +265,6 @@ fit_3b_0 <- fit_3b_out_0[[1]]
 fit_data_3b_0 <- fit_3b_out_0[[2]]
 sig_out <- plot_sigmoid_0(fit_data_3b_0$y, fit_data_3b_0$pt, fit_3b_0)
 writeMat(
-    paste(c("/Users/david/OneDrive/Documents/Yale/NTB_lab/batters_problem/vma_recall_repo/sigmoid_fit_E2_",
+    paste(c("sigmoid_fit_E2_",
             "3Tb_0.mat"), sep="", collapse=""), sig_out = sig_out)
 summary(fit_3b)

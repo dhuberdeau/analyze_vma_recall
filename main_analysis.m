@@ -24,3 +24,12 @@ min_pt_E2 = min_pt_all;
 %% Meta analysis:
 meta_analysis_v1;
 
+%% Run stats in R:
+disp('Run R script');
+pause;
+
+%% continue with main analysis:
+post_main;
+
+
+

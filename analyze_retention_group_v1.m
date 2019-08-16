@@ -325,10 +325,6 @@ data_mat_pc = [temp_pc(inds_valid_pt),...
 
 csvwrite('raw_data_mat_E1_pc', data_mat_pc);
 
-% Run the R script, which generates a mat file that can be loaded again for
-% plotting:
-!#bin/bash Rscript /Users/david/OneDrive/Documents/Yale/NTB_lab/batters_problem/vma_recall_repo/sigmoid_fit_E1_d.R
-load('sigmoid_fit_E1.mat');
 %% Align data to each participant's individual minPT and compute Pr(corr) for catch trials
 view_time_all_0 = reshape(view_time(:, :, 1) - repmat(min_pt, size(view_time,1), 1),...
     size(view_time,1)*size(view_time,2), 1);
@@ -407,72 +403,6 @@ for i_bin = 1:(length(edge_pt_all) - 1)
     
 end
 
-%% plot dir. err. aligned to minPT, and catch trial err., and pr(corr), and variability
-figure;
-n_subplots = 4;
-
-subplot(n_subplots,1,1); hold on;
-plot([0 0], [-200 200], 'k-')
-plot(view_time_all_0, de_all_0, '.', 'Color', RED_COLOR) %type 0
-plot(view_time_all_1, de_all_1, '.', 'Color', GREEN_COLOR) %type 1
-plot(view_time_all_2, de_all_2, '.', 'Color', BLUE_COLOR) %type 2
-plot([-.5 .5], [30 30], '-', 'Color', [.5 .5 .5]);
-plot([-.5 .5], -[30 30], '-', 'Color', [.5 .5 .5]);
-axis([-0.5 0.5 -200 200]);
-set(gca,'fontsize',18)
-ylabel('Directional error', 'Fontsize', 12);
-
-subplot(n_subplots,1,2); hold on;
-plot([0 0], [-200 200], 'k-')
-plot(view_time_all_3, de_all_3, 'o', 'Color', GREEN_COLOR) %type 3 (catch trials, direct cue)
-plot(view_time_all_4, de_all_4, 'o', 'Color', BLUE_COLOR) %type 4 (catch trials, symbol cue) 
-plot([-.5 .5], [30 30], '-', 'Color', [.5 .5 .5]);
-plot([-.5 .5], -[30 30], '-', 'Color', [.5 .5 .5]);
-axis([-0.5 0.5 -200 200]);
-set(gca,'fontsize',18)
-ylabel('Directional error','Fontsize', 12);
-
-subplot(n_subplots,1,3); hold on;
-plot([0 0], [0 1], 'k-')
-plot(x_ind, p_all_0, '.-', 'Color', RED_COLOR);
-plot(x_ind, p_all_1, '.-', 'Color', GREEN_COLOR);
-plot(x_ind, p_all_2, '.-', 'Color', BLUE_COLOR);
-plot(x_ind, p_all_3, 'o-', 'Color', GREEN_COLOR);
-plot(x_ind, p_all_4, 'o-', 'Color', BLUE_COLOR);
-axis([-0.5 0.5 -0.05 1.05]);
-set(gca,'fontsize',18)
-plot([-.5 .5], [.25 .25], '-', 'LineWidth', 2, 'Color', [.5 .5 .5]);
-plot([-.5 .5], [30 30], '--', 'LineWidth', 2, 'Color', [.5 .5 .5]);
-plot([-.5 .5], -[30 30], '--', 'LineWidth', 2, 'Color', [.5 .5 .5]);
-ylabel('Probability correct', 'Fontsize', 12)
-
-% subplot(4,1,4); hold on;
-% plot([0 0], [0 12], 'k-')
-% plot(x_ind, var_all_0, 'r.-');
-% plot(x_ind, var_all_1, 'g.-');
-% plot(x_ind, var_all_2, 'b.-');
-
-if n_subplots > 3
-    % Plot the sigmoid fits if desired:
-    subplot(n_subplots,1,4); hold on
-    plot(mat_out.t, mat_out.y_0, 'Color', RED_COLOR, 'LineWidth', 2)
-    plot(mat_out.t, mat_out.y_1, 'Color', GREEN_COLOR, 'LineWidth', 2)
-    plot(mat_out.t, mat_out.y_2, 'Color', BLUE_COLOR, 'LineWidth', 2)
-    plot(mat_out.t, mat_out.y_3, 'k--', 'LineWidth', 2)
-    axis([-0.5 0.5 -0.05 1.05]);
-    set(gca,'fontsize',18)
-    ylabel('Probability correct', 'Fontsize', 12);
-    desired_pos = [552 538 500 600];
-else
-    desired_pos = [552 538 500 458];
-end
-xlabel('Preparation time (sec)');
-
-ff = gcf;
-set(ff, 'Position', desired_pos);
-set(ff, 'PaperOrientation', 'landscape')
-saveas(ff, 'Aggregated_catchtrials.pdf');
-
 %% plot probability of recall as function of appearance of symbol:
 [rec_lpt, rec_hpt] = compute_recall_probability_appearance_order(...
     move_all, target_all, type_all,...
@@ -506,4 +436,6 @@ ylabel('Probability correct');
 f_ = gcf;
 set(f_, 'Position', [0 0 300 420])
 saveas(f_, 'Recall_probability.pdf');
+
+
 

@@ -33,5 +33,3 @@ saveas(f_mpt, 'MinPT_by_TargetNum.pdf')
 
 min_pt_dat_mat = [min_pt_corr(:), targ_nums(:)];
 csvwrite('min_pt_data', min_pt_dat_mat);
-
-!#bin/bash Rscript /Users/david/OneDrive/Documents/Yale/NTB_lab/batters_problem/vma_recall_repo/

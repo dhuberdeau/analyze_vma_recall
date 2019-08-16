@@ -5,13 +5,15 @@ library(lme4)
 library(car)
 library(lmerTest)
 
+setwd(getwd())
+
 ##### --- Functions --- #####
 lme_func <- function(dat){
   # Use mixed effects to account for subject repeated measures:
   #
   # INPUT: dat - data frame with fields pt, type, response, and subject.
   # OUTPUT: list of anova results for interaction, pt, and type tests, and full model
-  
+
   lm1_ <- lmer(response ~ type + pt + (1|subject), data = dat, REML = FALSE)
   lm2_ <- lmer(response ~ type*pt + (1|subject), data = dat, REML = FALSE) #test the interaction
   lm3_ <- lmer(response ~ type + (1|subject), data = dat, REML = FALSE) # test pt
@@ -50,7 +52,7 @@ posthoc_pt_func <- function(dat, type_){
 }
 
 ##### --- probability correct --- ######
-pc_data <- read.csv('/Users/david/OneDrive/Documents/Yale/NTB_lab/batters_problem/vma_recall_repo/table_E1_pc',
+pc_data <- read.csv('table_E1_pc',
                     header = FALSE, na.strings = 'NaN')
 # V1: PT, V2: PC, V3: trial type, V4: subject
 
@@ -79,7 +81,7 @@ post_pc_1 <- posthoc_pt_func(dat,1)
 post_pc_2 <- posthoc_pt_func(dat,2)
 
 ##### --- Peak Velocity --- #####
-pv_data <- read.csv('/Users/david/OneDrive/Documents/Yale/NTB_lab/batters_problem/vma_recall_repo/table_E1_pv',
+pv_data <- read.csv('table_E1_pv',
                     header = FALSE, na.strings = 'NaN')
 # V1: PT, V2: PC, V3: trial type, V4: subject
 
@@ -105,7 +107,7 @@ post_pv_1 <- posthoc_pt_func(dat,1)
 post_pv_2 <- posthoc_pt_func(dat,2)
 
 ##### --- Variability --- #####
-var_data <- read.csv('/Users/david/OneDrive/Documents/Yale/NTB_lab/batters_problem/vma_recall_repo/table_E1_var',
+var_data <- read.csv('table_E1_var',
                     header = FALSE, na.strings = 'NaN')
 # V1: PT, V2: PC, V3: trial type, V4: subject
 

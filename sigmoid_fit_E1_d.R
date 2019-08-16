@@ -3,7 +3,9 @@ library(R.matlab)
 
 RELATIVE_PT_MINMAX = 0.5;
 
-pc_data <- read.csv('/Users/david/OneDrive/Documents/Yale/NTB_lab/batters_problem/vma_recall_repo/raw_data_mat_E1_pc',
+setwd(getwd())
+
+pc_data <- read.csv('raw_data_mat_E1_pc',
                     header = FALSE, na.strings = 'NaN')
 head(pc_data)
 # V1=correct or not, V2=trial type, V3=PT, V4=subject
@@ -21,7 +23,7 @@ pt <- dat$pt
 y <- dat$pc
 ty <- dat$type
 ty[ty == 4] <- 3
-ty[ty == 3] <- 3    
+ty[ty == 3] <- 3
 ty <- as.factor(ty)
 fit <- glm(y ~ pt*ty, data = data.frame(pt,ty,y), family = binomial(link = logit))
 
@@ -57,4 +59,4 @@ y_3 <- predict(fit, newdata = data.frame(pt=t,ty=p), type="response")
 lines(t, y_3, col = "black")
 
 mat_out = data.frame(t, y_0, y_1, y_2, y_3)
-writeMat("/Users/david/OneDrive/Documents/Yale/NTB_lab/batters_problem/vma_recall_repo/sigmoid_fit_E1.mat", mat_out = mat_out)
+writeMat("sigmoid_fit_E1.mat", mat_out = mat_out)

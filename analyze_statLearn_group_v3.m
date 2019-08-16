@@ -280,7 +280,7 @@ csvwrite('memTest_score_E2_3Tb_1', memTest_table{4});
 csvwrite('memTest_score_E2_3Tb_2', memTest_table{5});
 
 % run statistics in R:
-!#bin/bash Rscript [HOME_DIR, filesep, cross_situational_learning_stats_v3.R]
+% !#bin/bash Rscript [HOME_DIR, filesep, cross_situational_learning_stats_v3.R]
 % results are in 'lme_results.mat' and 'memory_test_results_*.mat'
 %% compute probability of recall as function of appearances of symbol
 symbol_repeat_max = [18, 8, 8, 18];
@@ -773,34 +773,7 @@ for i_grp = group_analysis_list
     plot([0 0], [0 20], 'k-')
 end
 
-%% Run Rscript for sigmoid analysis:
-% #!bin/bash Rscript [HOME_DIR, filesep, sigmoid_fit_E2_d.R]
-experiment_names = {'3T', '4T', '6T', '3Tb'};
-quarter_index = 0:4;
-plot_index = [1:5; 6:10; 11:15; 16:20]';
-f_sig1 = figure;
-for i_grp = 1:4
-    for i_qrt = 1:5
-        load(['sigmoid_fit_E2_', experiment_names{i_grp}, '_', num2str(quarter_index(i_qrt)), '.mat']);
 
-        subplot(4,5,plot_index(i_qrt, i_grp)); hold on;
-
-        % important note: 
-        % y_1 -> type 1
-        % y_2 -> type 2
-        % y_3 -> catch trials (type 3 or 4)
-        if i_qrt == 1
-            plot(sig_out.t, sig_out.y_0, 'LineWidth', 2, 'Color', RED_COLOR);
-        else
-            plot(sig_out.t, sig_out.y_1, 'LineWidth', 2, 'Color', GREEN_COLOR);
-            plot(sig_out.t, sig_out.y_2, 'LineWidth', 2, 'Color', BLUE_COLOR);
-            plot(sig_out.t, sig_out.y_3, 'k', 'LineWidth', 2);
-        end
-    end
-end
-set(f_sig1, 'Position', [72 549 818 406]);
-set(f_sig1, 'PaperOrientation', 'landscape')
-saveas(f_sig1, 'Groups_sigmoid_fit.pdf');
 %%
 % Plot directional error vs. PT of catch trials , aligned to minPT
 fig_catch = figure;

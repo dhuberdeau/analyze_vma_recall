@@ -44,7 +44,8 @@ target = target_;
 pt = pt_;
 
 unique_syms = unique(target(~isnan(target(:,1)), 1));
-unique_targs = unique(mov_class(~isnan(mov_class(:,1)), 1));
+mov_class_temp = mov_class(:);
+unique_targs = unique(mov_class_temp(~isnan(mov_class_temp)));
 N_SYMS = length(unique_syms);
 targ_appearances = nan(1, N_SYMS);
 for i_targ = 1:N_SYMS
