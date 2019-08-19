@@ -286,6 +286,19 @@ csvwrite('memTest_score_E2_3Tb_2', memTest_table{5});
 symbol_repeat_max = [18, 8, 8, 18];
 
 f2 = figure; 
+subplot(1,5,1); hold on;
+% errorbar((1:max_lpt) + 0.1 , nanmean(lpt_all_none_E1(1:max_lpt, :),2),...
+%         sqrt(nanvar(lpt_all_none_E1(1:max_lpt, :), [], 2)./size(lpt_all_none_E1, 2)),...
+%         'Color', LIGHT_RED, 'MarkerSize', 18, 'LineWidth', 2);
+errorbar((1:max_lpt) - 0.1, nanmean(lpt_all_symbolic_E1(1:max_lpt, :),2),...
+    sqrt(nanvar(lpt_all_symbolic_E1(1:max_lpt, :), [], 2)./size(lpt_all_symbolic_E1, 2)),...
+    'Color', BLUE_COLOR, 'MarkerSize', 18, 'LineWidth', 2);
+errorbar((1:max_lpt) + 0.1 , nanmean(lpt_all_direct_E1(1:max_lpt, :),2),...
+        sqrt(nanvar(lpt_all_direct_E1(1:max_lpt, :), [], 2)./size(lpt_all_direct_E1, 2)),...
+        'Color', GREEN_COLOR, 'MarkerSize', 18, 'LineWidth', 2);
+axis([0 symbol_repeat_max(1) 0 1]);
+xlabel('Trial occurance');
+ylabel('Success probability');
 for i_grp = group_analysis_list
         % for no pre-cued trials
     [rec_lpt_none, rec_hpt_none] = compute_recall_probability_appearance_order(...
@@ -295,11 +308,11 @@ for i_grp = group_analysis_list
     lpt_per_targ_none = reshape(nanmean(rec_lpt_none, 3), size(rec_lpt_none, 1), size(rec_lpt_none, 2));
     lpt_all_none = reshape(nanmean(rec_lpt_none, 1), size(rec_lpt_none,2), size(rec_lpt_none, 3));
     
-    subplot(1,4,i_grp); hold on;
-    errorbar(1:symbol_repeat_max(i_grp), nanmean(lpt_all_none(1:symbol_repeat_max(i_grp), :),2),...
-        sqrt(nanvar(lpt_all_none(1:symbol_repeat_max(i_grp), :), [], 2)./size(lpt_all_none, 2)), 'Color', LIGHT_RED, ...
-        'MarkerSize', 18, 'LineWidth', 2);
-    axis([0 symbol_repeat_max(1) 0 1]);
+    subplot(1,5,i_grp+1); hold on;
+%     errorbar(1:symbol_repeat_max(i_grp), nanmean(lpt_all_none(1:symbol_repeat_max(i_grp), :),2),...
+%         sqrt(nanvar(lpt_all_none(1:symbol_repeat_max(i_grp), :), [], 2)./size(lpt_all_none, 2)), 'Color', LIGHT_RED, ...
+%         'MarkerSize', 18, 'LineWidth', 2);
+%     axis([0 symbol_repeat_max(1) 0 1]);
     
     
     % for direct cued trials
@@ -310,7 +323,7 @@ for i_grp = group_analysis_list
     lpt_per_targ_direct = reshape(nanmean(rec_lpt_direct, 3), N_SYMBS_GRP(i_grp), size(rec_lpt_direct, 2));
     lpt_all_direct = reshape(nanmean(rec_lpt_direct, 1), size(rec_lpt_direct,2), size(rec_lpt_direct, 3));
     
-    subplot(1,4,i_grp); hold on;
+    subplot(1,5,i_grp+1); hold on;
     errorbar(1:symbol_repeat_max(i_grp), nanmean(lpt_all_direct(1:symbol_repeat_max(i_grp), :),2),...
         sqrt(nanvar(lpt_all_direct(1:symbol_repeat_max(i_grp), :), [], 2)./size(lpt_all_direct, 2)), 'Color', GREEN_COLOR,...
         'MarkerSize', 18, 'LineWidth', 2);
@@ -326,7 +339,7 @@ for i_grp = group_analysis_list
     lpt_per_targ = reshape(nanmean(rec_lpt, 3), N_SYMBS_GRP(i_grp), size(rec_lpt, 2));
     lpt_all = reshape(nanmean(rec_lpt, 1), size(rec_lpt,2), size(rec_lpt, 3));
     
-    subplot(1,4,i_grp); hold on;
+    subplot(1,5,i_grp+1); hold on;
     errorbar(1:symbol_repeat_max(i_grp), nanmean(lpt_all(1:symbol_repeat_max(i_grp), :),2),...
         sqrt(nanvar(lpt_all(1:symbol_repeat_max(i_grp), :), [], 2)./size(lpt_all, 2)), 'Color', BLUE_COLOR, ...
         'MarkerSize', 18, 'LineWidth', 2);
@@ -335,7 +348,8 @@ for i_grp = group_analysis_list
     xlabel('Trial occurance');
     ylabel('Success probability');
 end
-set(f2, 'Position', [1 197 684 436]);
+set(f2, 'Position', [1 197 900 300]);
+set(f2, 'PaperOrientation', 'landscape')
 saveas(f2, 'Symbole_learning_by_occurance.pdf');
 
 %% compute pr(succ | pt) for first half and second half of blocks for each group:

@@ -404,18 +404,31 @@ for i_bin = 1:(length(edge_pt_all) - 1)
 end
 
 %% plot probability of recall as function of appearance of symbol:
+max_lpt = 15;
+
+[rec_lpt_none, rec_hpt_none] = compute_recall_probability_appearance_order(...
+    move_all, target_all, type_all,...
+    pt_all, min_pt, 0);
+
+lpt_per_targ_none = reshape(nanmean(rec_lpt_none, 3), 4, size(rec_lpt_none, 2));
+lpt_all_none = reshape(nanmean(rec_lpt_none, 1), size(rec_lpt_none,2), size(rec_lpt_none, 3));
+
+figure; hold on;
+    errorbar((1:max_lpt) - 0.1, nanmean(lpt_all_none(1:max_lpt, :),2),...
+        sqrt(nanvar(lpt_all_none(1:max_lpt, :), [], 2)./size(lpt_all_none, 2)), 'b.-',...
+        'Color', [86 85 149]/255, 'MarkerSize', 18, 'LineWidth', 2);
+axis([0 max_lpt 0 1]);
+
 [rec_lpt, rec_hpt] = compute_recall_probability_appearance_order(...
     move_all, target_all, type_all,...
     pt_all, min_pt, 2);
 
-max_lpt = 15;
-
 lpt_per_targ = reshape(nanmean(rec_lpt, 3), 4, size(rec_lpt, 2));
-lpt_all = reshape(nanmean(rec_lpt, 1), size(rec_lpt,2), size(rec_lpt, 3));
+lpt_all_symbolic = reshape(nanmean(rec_lpt, 1), size(rec_lpt,2), size(rec_lpt, 3));
 
 figure; hold on;
-    errorbar((1:max_lpt) - 0.1, nanmean(lpt_all(1:max_lpt, :),2),...
-        sqrt(nanvar(lpt_all(1:max_lpt, :), [], 2)./size(lpt_all, 2)), 'b.-',...
+    errorbar((1:max_lpt) - 0.1, nanmean(lpt_all_symbolic(1:max_lpt, :),2),...
+        sqrt(nanvar(lpt_all_symbolic(1:max_lpt, :), [], 2)./size(lpt_all_symbolic, 2)), 'b.-',...
         'Color', [86 85 149]/255, 'MarkerSize', 18, 'LineWidth', 2);
 axis([0 max_lpt 0 1]);
 
@@ -430,12 +443,18 @@ errorbar((1:max_lpt) + 0.1 , nanmean(lpt_all_direct(1:max_lpt, :),2),...
         sqrt(nanvar(lpt_all_direct(1:max_lpt, :), [], 2)./size(lpt_all_direct, 2)), 'g.-',...
         'Color', [85, 170, 85]/255, 'MarkerSize', 18, 'LineWidth', 2);
 axis([0, max_lpt + 0.1, 0, 1.1]);
+
+
 set(gca,'fontsize',18)
 xlabel('Symbol occurance');
 ylabel('Probability correct');
 f_ = gcf;
 set(f_, 'Position', [0 0 300 420])
-saveas(f_, 'Recall_probability.pdf');
+% saveas(f_, 'Recall_probability.pdf');
+
+lpt_all_none_E1 = lpt_all_none;
+lpt_all_symbolic_E1 = lpt_all_symbolic;
+lpt_all_direct_E1 = lpt_all_direct;
 
 
 
