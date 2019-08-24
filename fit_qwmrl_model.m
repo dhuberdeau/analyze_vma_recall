@@ -16,7 +16,7 @@ beta_0 = [0.6; 20; 1; 45; 0.25; .95];
 
 p_hat = nan(6, size(actions,2));
 for i_sub = 1:size(actions, 2)
-    p_hat(:,i_sub) = mle(s_input(:, i_sub), 'logpdf', @q_learn_rlwm_pdf, 'start', beta_0);
+    p_hat(:,i_sub) = mle(s_input(:, i_sub), 'logpdf', @q_learning_EXP_func_4T, 'start', beta_0);
 end
 
 %%
@@ -28,5 +28,5 @@ beta_0 = [0.6; 20; 1; 45; 0.25; .95];
 
 p_hat = nan(6, size(actions,2));
 for i_sub = 1:size(actions, 2)
-    p_hat(:,i_sub) = mle(s_input(:, i_sub), 'logpdf', @q_learn_rlwm_pdf, 'start', beta_0);
+    p_hat(:,i_sub) = mle(s_input(:, i_sub), 'logpdf', @q_learning_EXP_func_4T, 'start', beta_0);
 end

@@ -41,6 +41,7 @@ end
 LIGHT_RED = [255, 200, 200]/255;
 RELATIVE_PT_MINMAX = 0.5;
 TRIAL_QUARTERS = 60;
+max_lpt = 15;
 
 subject_list_3T = {...
 'Data_SP026_03222018_E2.mat',...
@@ -160,6 +161,8 @@ pt_all = cell(1, length(group_subjects));
 dir_err_all = cell(1, length(group_subjects));
 grp_succ_hi_1 = cell(1, length(group_subjects));
 grp_succ_hi_2 = cell(1, length(group_subjects));
+grp_succ_hi_supTH_1 = cell(1, length(group_subjects));
+grp_succ_hi_supTH_2 = cell(1, length(group_subjects));
 memory_test_results_grp = cell(1, length(group_subjects));
 memory_test_results_grp4_early = nan(1, length(subject_list_3T_B));
 
@@ -184,6 +187,8 @@ for i_grp = group_analysis_list
     
     grp_succ_hi_1{i_grp} = data_grp.succ_block_1_hiRes;
     grp_succ_hi_2{i_grp} = data_grp.succ_block_2_hiRes;
+    grp_succ_hi_supTH_1{i_grp} = data_grp.succ_block_1_supTH_hiRes;
+    grp_succ_hi_supTH_2{i_grp} = data_grp.succ_block_2_supTH_hiRes;
     
     min_pt_all(1:length(data_grp.minPT_all), i_grp) = data_grp.minPT_all;
 %     conf_mat_all{i_grp} = data_grp.conf_mat;
@@ -282,6 +287,44 @@ csvwrite('memTest_score_E2_3Tb_2', memTest_table{5});
 % run statistics in R:
 % !#bin/bash Rscript [HOME_DIR, filesep, cross_situational_learning_stats_v3.R]
 % results are in 'lme_results.mat' and 'memory_test_results_*.mat'
+
+%% repeat but for high-PT trials only
+f_hpt = figure;
+axis_lims = [0 4.5 -0.1 1];
+cond_colors = {'g', 'b'};
+table_out = cell(size(group_analysis_list));
+memTest_table = cell(length(group_analysis_list)+1, 1);
+group_titles = {'Three Targets', 'Four Targets', 'Six Targets', 'Three Targets'};
+for i_grp = group_analysis_list
+    subplot(2,4,i_grp);
+    hold on;
+    
+    errorbar(.5:.5:4, nanmean(grp_succ_hi_supTH_1{i_grp}, 2),...
+        sqrt(nanvar(grp_succ_hi_supTH_1{i_grp}, [], 2)./size(grp_succ_hi_supTH_1{i_grp},2)),...
+        '.-', 'Color', GREEN_COLOR, 'LineWidth', 2, 'MarkerSize', 18);
+    errorbar(.5:.5:4, nanmean(grp_succ_hi_supTH_2{i_grp}, 2),...
+        sqrt(nanvar(grp_succ_hi_supTH_2{i_grp}, [], 2)./size(grp_succ_hi_supTH_2{i_grp},2)),...
+        '.-', 'Color', BLUE_COLOR, 'LineWidth', 2, 'MarkerSize', 18);
+    
+    errorbar(4.25, nanmean(memory_test_results_grp{i_grp}),...
+        sqrt(nanvar(memory_test_results_grp{i_grp})./length(memory_test_results_grp{i_grp})),...
+        'ks', 'LineWidth', 2);
+    axis(axis_lims)
+    title(group_titles{i_grp});
+    xlabel('Block')
+    ylabel('Probability correct');
+    
+    if i_grp == 4
+        % show early memory test results for group 4 only (the only group
+        % that did this test)
+        errorbar(1.25, nanmean(memory_test_results_grp4_early),...
+        sqrt(nanvar(memory_test_results_grp4_early)./length(memory_test_results_grp4_early)),...
+        'ks', 'LineWidth', 2); 
+    end
+end
+
+set(f_hpt, 'Position', [0 500 700 500])
+saveas(f_hpt, 'statLearning_supTH_PC.pdf');
 %% compute probability of recall as function of appearances of symbol
 symbol_repeat_max = [18, 8, 8, 18];
 
@@ -330,7 +373,6 @@ for i_grp = group_analysis_list
     axis([0 symbol_repeat_max(1) 0 1]);
     
 
-    
     % for symbolicly cued trials
     [rec_lpt, rec_hpt] = compute_recall_probability_appearance_order(...
         mov_class_all{i_grp}, target_all{i_grp}, type_all{i_grp},...
@@ -347,10 +389,27 @@ for i_grp = group_analysis_list
     
     xlabel('Trial occurance');
     ylabel('Success probability');
+    
+    data_mat = [repmat((1:symbol_repeat_max(i_grp))', size(lpt_all_direct,2), 1),...
+        reshape(lpt_all_direct(1:symbol_repeat_max(i_grp),:), symbol_repeat_max(i_grp)*size(lpt_all_direct,2), 1),...
+        ones(symbol_repeat_max(i_grp)*size(lpt_all_direct,2), 1);...
+    repmat((1:symbol_repeat_max(i_grp))', size(lpt_all_direct,2),1),...
+    reshape(lpt_all(1:symbol_repeat_max(i_grp),:), symbol_repeat_max(i_grp)*size(lpt_all_direct,2), 1), ...
+    2*ones(symbol_repeat_max(i_grp)*size(lpt_all_direct,2), 1)];
+
+    csvwrite(['trial_occurance_data_', num2str(i_grp)], data_mat);
 end
 set(f2, 'Position', [1 197 900 300]);
 set(f2, 'PaperOrientation', 'landscape')
 saveas(f2, 'Symbole_learning_by_occurance.pdf');
+
+% save data matrix for analysis in R
+% data_mat_3T = [(1:symbol_repeat_max(1))', lpt_all_direct', ones(size(lpt_all_direct, 2), 1);...
+%     (1:symbol_repeat_max(1))', lpt_all', 2*ones(size(lpt_all, 2), 1)];
+% data_mat_4T = [(1:symbol_repeat_max(1))', lpt_all_direct', ones(size(lpt_all_direct, 2), 1);...
+%     (1:symbol_repeat_max(1))', lpt_all', 2*ones(size(lpt_all, 2), 1)];
+% data_mat_6T = [(1:symbol_repeat_max(3))', (1:symbol_repeat_max(1))'];
+% data_mat_3Tb = [(1:symbol_repeat_max(1))', (1:symbol_repeat_max(1))'];
 
 %% compute pr(succ | pt) for first half and second half of blocks for each group:
 % Doesn't go into the paper but is a nice confirmation of data.
