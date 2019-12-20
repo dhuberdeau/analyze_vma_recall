@@ -36,7 +36,8 @@ else
     plot_out = 1;
 end
 %% define some variables and constants:
-Data.ViewTime = Data.pPT + Data.RT; % compute ViewTime from RT and prescribed PT
+% Data.ViewTime = Data.pPT + Data.RT; % compute ViewTime from RT and prescribed PT
+Data.ViewTime = Data.pPT + Data.RT - 0.06; % 08/25/2019 - correct for system delays
 
 home_position = screen_dims/2*mm_pix;
 TARG_LEN = 400*mm_pix;

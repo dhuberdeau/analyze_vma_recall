@@ -29,7 +29,8 @@ else
 end
 
 %% compute view time
-Data.ViewTime = Data.pPT + Data.RT; % correct error in retention_TR_experiment_v3
+% Data.ViewTime = Data.pPT + Data.RT; % correct error in retention_TR_experiment_v3
+Data.ViewTime = Data.pPT + Data.RT - 0.06; % 08/25/2019 - correct for delays in system
 
 %% define target locations and other parameters:
 % screen_dims = [1680, 1050];
