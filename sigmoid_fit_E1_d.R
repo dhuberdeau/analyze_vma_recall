@@ -29,6 +29,12 @@ fit <- glm(y ~ pt*ty, data = data.frame(pt,ty,y), family = binomial(link = logit
 
 summary(fit)
 
+# Test overall effect of interactions: (interaction terms are 3 to 5)
+w_test <- wald.test(b = coef(fit), Sigma = vcov(fit), Terms = 6:8)
+
+# Test overall effect of type: (type terms are 3 to 5)
+w_test <- wald.test(b = coef(fit), Sigma = vcov(fit), Terms = 3:5)
+
 with(dat[dat$type == 0,], plot(pc ~ pt, xlim = c(-RELATIVE_PT_MINMAX, RELATIVE_PT_MINMAX), col="red"))
 par(new = TRUE)
 with(dat[dat$type == 1,], plot(pc ~ pt, xlim = c(-RELATIVE_PT_MINMAX, RELATIVE_PT_MINMAX), col="green"))
